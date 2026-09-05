@@ -27,6 +27,8 @@ export type ClanJoinRequestStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCE
 
 export type ClanWarStatus = 'PENDING' | 'ACTIVE' | 'FINISHED' | 'DECLINED';
 
+export type FriendshipStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED';
+
 // ---------------------------------------------------------------------------
 // Filas
 // ---------------------------------------------------------------------------
@@ -147,6 +149,23 @@ export type ClanLeaderboardRow = {
   member_count: number;
 };
 
+export type FriendshipRow = {
+  id: string;
+  requester_id: string;
+  addressee_id: string;
+  /**
+   * Columnas generadas (`LEAST`/`GREATEST` del par) que normalizan la pareja
+   * sin orden. Existen para el índice único que impide una segunda solicitud
+   * entre los mismos dos usuarios; la app no las lee.
+   */
+  user_low_id: string;
+  user_high_id: string;
+  status: FriendshipStatus;
+  created_at: string;
+  /** `null` mientras la solicitud siga `PENDING`. */
+  responded_at: string | null;
+};
+
 // ---------------------------------------------------------------------------
 // Esquema
 // ---------------------------------------------------------------------------
@@ -204,6 +223,7 @@ export type Database = {
       clan_invites: ReadOnlyTable<ClanInviteRow>;
       clan_wars: ReadOnlyTable<ClanWarRow>;
       clan_war_participants: ReadOnlyTable<ClanWarParticipantRow>;
+      friendships: ReadOnlyTable<FriendshipRow>;
     };
     Views: {
       clan_leaderboard: {
@@ -299,12 +319,29 @@ export type Database = {
       };
       sync_clan_war_steps: { Args: { p_war_id: string }; Returns: ClanWarRow };
       resolve_clan_war: { Args: { p_war_id: string }; Returns: ClanWarRow };
+
+      // ---- Amistades ----
+      send_friend_request: {
+        Args: { p_addressee_id: string };
+        Returns: FriendshipRow;
+      };
+      respond_to_friend_request: {
+        Args: { p_friendship_id: string; p_accept: boolean };
+        Returns: FriendshipRow;
+      };
+      cancel_friend_request: {
+        Args: { p_friendship_id: string };
+        Returns: FriendshipRow;
+      };
+      /** Borra la fila, así que no devuelve nada. */
+      remove_friend: { Args: { p_friendship_id: string }; Returns: undefined };
     };
     Enums: {
       duel_status: DuelStatus;
       clan_role: ClanRole;
       clan_join_request_status: ClanJoinRequestStatus;
       clan_war_status: ClanWarStatus;
+      friendship_status: FriendshipStatus;
     };
     CompositeTypes: Record<never, never>;
   };

@@ -18,13 +18,13 @@ import { levelProgress, type LevelProgress } from '@/lib/xp';
  *   sentido enseñarlo antes de que exista tracking, igual que cualquier app de
  *   fitness deja fijar una meta antes de conectar un dispositivo.
  * - `duel`, `wins`, `losses`, `ACTIVE_DUELS`, `INCOMING_DUELS`,
- *   `OUTGOING_DUELS` → pendientes de un `duel-repository.ts`. Van vacíos/`null`
- *   (no con números inventados) para que las pantallas muestren su estado
- *   vacío real en vez de duelos que no existen.
- * - `FRIEND_REQUESTS`, `FRIENDS`, `FRIEND_PROFILES` → pendientes de un
- *   `friendship-repository.ts` que envuelva las RPC de amistades, que ya
- *   existen (`supabase/SCHEMA.md` §13). Mismo criterio: vacíos, no
- *   inventados.
+ *   `OUTGOING_DUELS` → pendientes de un `duel-repository.ts` (KAN-32). Van
+ *   vacíos/`null` (no con números inventados) para que las pantallas muestren
+ *   su estado vacío real en vez de duelos que no existen.
+ *
+ * Los amigos **ya no están aquí**: salieron a `friendshipRepository`, que
+ * envuelve las RPC de `supabase/SCHEMA.md` §13. Este archivo encoge según cada
+ * entidad consigue su repositorio; cuando se quede sin nada, se borra.
  */
 export type DuelSide = {
   name: string;
@@ -118,62 +118,6 @@ export const FEATURED_DUEL: ActiveDuel | null = null;
 export const ACTIVE_DUELS: ActiveDuel[] = [];
 export const INCOMING_DUELS: PendingDuel[] = [];
 export const OUTGOING_DUELS: PendingDuel[] = [];
-
-export type Friend = {
-  username: string;
-  level: number;
-  streakDays: number;
-  inDuel: boolean;
-};
-
-export type FriendRequest = {
-  username: string;
-  level: number;
-};
-
-/**
- * Sin `friendship-repository.ts` no hay amigos de verdad: vacío para que la
- * pantalla de Amigos muestre su estado vacío real (`FriendsEmptyScreen`).
- */
-export const FRIEND_REQUESTS: FriendRequest[] = [];
-export const FRIENDS: Friend[] = [];
-
-export type DuelOutcome = 'WIN' | 'LOSS';
-
-export type FriendProfile = {
-  username: string;
-  level: number;
-  streakDays: number;
-  /** Resultados tuyos contra ese amigo, del más antiguo al más reciente. */
-  record: DuelOutcome[];
-  /**
-   * `null` cuando no se conoce el dato, que no es lo mismo que cero: enseñar
-   * `0` diría que ese amigo no anda, en vez de que todavía no lo sabemos.
-   */
-  dailyAvgSteps: number | null;
-  /** Porcentaje de victorias del amigo en todos sus duelos, no solo contigo. */
-  winRate: number | null;
-};
-
-/** Vacío: sin amigos de verdad no hay ningún perfil de amigo que enseñar. */
-export const FRIEND_PROFILES: FriendProfile[] = [];
-
-export function findFriendProfile(username: string): FriendProfile | null {
-  const measured = FRIEND_PROFILES.find((profile) => profile.username === username);
-  if (measured) return measured;
-
-  const friend = FRIENDS.find((candidate) => candidate.username === username);
-  if (!friend) return null;
-
-  return {
-    username: friend.username,
-    level: friend.level,
-    streakDays: friend.streakDays,
-    record: [],
-    dailyAvgSteps: null,
-    winRate: null,
-  };
-}
 
 /**
  * Ajustes de demostración. Los conmutadores son estado local de la pantalla:

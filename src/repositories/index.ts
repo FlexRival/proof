@@ -11,13 +11,34 @@
  */
 
 import { supabase } from '@/lib/supabase';
+import { CachedFriendshipRepository } from '@/repositories/cached-friendship-repository';
 import { CachedProfileRepository } from '@/repositories/cached-profile-repository';
+import type { FriendshipRepository } from '@/repositories/friendship-repository';
 import type { ProfileRepository } from '@/repositories/profile-repository';
+import { SupabaseFriendshipRepository } from '@/repositories/supabase/friendship-repository';
 import { SupabaseProfileRepository } from '@/repositories/supabase/profile-repository';
 
 export type { PickedImage, Profile, ProfileRepository } from '@/repositories/profile-repository';
+export type {
+  Friend,
+  FriendRequest,
+  FriendshipRepository,
+  Friendships,
+  ProfileMatch,
+} from '@/repositories/friendship-repository';
 export { RepositoryError } from '@/repositories/errors';
 
-export const profileRepository: ProfileRepository = new CachedProfileRepository(
-  new SupabaseProfileRepository(supabase),
+const profiles = new CachedProfileRepository(new SupabaseProfileRepository(supabase));
+
+export const profileRepository: ProfileRepository = profiles;
+
+/**
+ * La caché de amistades se invalida con la sesión igual que la de perfil,
+ * pero la suscripción no la conoce el decorador: se la pasa este archivo, que
+ * es el único que sabe que ambos repositorios existen y hablan con el mismo
+ * Supabase. Ver `SessionChangeSource` en `cache.ts`.
+ */
+export const friendshipRepository: FriendshipRepository = new CachedFriendshipRepository(
+  new SupabaseFriendshipRepository(supabase),
+  (listener) => profiles.onSessionChange(listener),
 );

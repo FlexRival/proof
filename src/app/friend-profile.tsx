@@ -10,29 +10,54 @@ import { ThemedText } from '@/components/atoms/themed-text';
 import { ThemedView } from '@/components/atoms/themed-view';
 import { ROUTES } from '@/constants/routes';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { useFriendships } from '@/hooks/use-friendships';
 import { useTheme } from '@/hooks/use-theme';
-import { findFriendProfile, type DuelOutcome, type FriendProfile } from '@/lib/demo-data';
 import { formatCount } from '@/lib/format';
+
+/**
+ * Resultado de un duelo tuyo contra este amigo. Vive aquí porque esta pantalla
+ * es su único consumidor; se mudará a `duel-repository.ts` cuando exista
+ * (KAN-32), que es quien podrá rellenarlo de verdad.
+ */
+type DuelOutcome = 'WIN' | 'LOSS';
 
 /**
  * Perfil de un amigo.
  *
  * Se abre con el usuario en la URL (`/friend-profile?username=@alexruiz`),
- * igual que `victory` y `new-duel`. Un usuario que no existe no tiene perfil
- * que enseñar y el diseño no define un estado de error, así que se sale a la
- * lista de amigos.
+ * igual que `victory` y `new-duel`. Alguien que no está en tu lista no tiene
+ * perfil que enseñar y el diseño no define un estado de error, así que se sale
+ * a la lista de amigos.
  *
- * **Datos de demostración todavía**: falta el `friendship-repository.ts` que
- * envuelva las RPC de amistades, y el cara a cara necesita además el
- * `duel-repository.ts` que tampoco existe.
+ * **Identidad real, historial todavía no.** Nombre, nivel y racha vienen de
+ * `friendshipRepository`. El cara a cara, la media diaria de pasos y el
+ * porcentaje de victorias necesitan el `duel-repository.ts` (KAN-32) y la
+ * agregación de `step_logs`, así que van vacíos o con una raya — nunca con un
+ * cero, que se leería como un dato real.
  */
 export default function FriendProfileScreen() {
   const { username } = useLocalSearchParams<{ username?: string }>();
-  const profile = username ? findFriendProfile(username) : null;
+  const { state } = useFriendships();
 
-  if (!profile) {
+  // Mientras la lista viaja no se sabe todavía si ese amigo existe: redirigir
+  // aquí sacaría al usuario de la pantalla que acaba de abrir.
+  if (state.status === 'loading') {
+    return <ThemedView style={styles.screen} />;
+  }
+
+  const friend =
+    state.status === 'ready'
+      ? state.data.friends.find((candidate) => candidate.username === username)
+      : undefined;
+
+  if (!friend) {
     return <Redirect href={ROUTES.friends.href} />;
   }
+
+  /** Vacío hasta KAN-32: sin repositorio de duelos no hay historial que leer. */
+  const record: DuelOutcome[] = [];
+  const dailyAvgSteps: number | null = null;
+  const winRate: number | null = null;
 
   return (
     <ThemedView style={styles.screen}>
@@ -54,32 +79,29 @@ export default function FriendProfileScreen() {
           <Card variant="rival" style={styles.character} />
 
           <View style={styles.identity}>
-            <ThemedText type="subtitle">{profile.username}</ThemedText>
+            <ThemedText type="subtitle">{friend.username}</ThemedText>
 
             <View style={styles.chips}>
-              <Chip label={`LV ${profile.level}`} tone="primary" />
-              <Chip label={`🔥 ${profile.streakDays} DAY STREAK`} tone="rival" />
+              <Chip label={`LV ${friend.level}`} tone="primary" />
+              <Chip label={`🔥 ${friend.streakDays} DAY STREAK`} tone="rival" />
             </View>
           </View>
 
-          <HeadToHeadCard record={profile.record} />
+          <HeadToHeadCard record={record} />
 
           <View style={styles.statsRow}>
             <StatTile
               label="DAILY AVG"
-              value={profile.dailyAvgSteps === null ? UNKNOWN : formatCount(profile.dailyAvgSteps)}
+              value={dailyAvgSteps === null ? UNKNOWN : formatCount(dailyAvgSteps)}
             />
-            <StatTile
-              label="WIN RATE"
-              value={profile.winRate === null ? UNKNOWN : `${profile.winRate}%`}
-            />
+            <StatTile label="WIN RATE" value={winRate === null ? UNKNOWN : `${winRate}%`} />
           </View>
 
           <View style={styles.actions}>
             <Button
-              label={`Challenge ${profile.username}`}
+              label={`Challenge ${friend.username}`}
               onPress={() =>
-                router.push({ pathname: '/new-duel', params: { opponent: profile.username } })
+                router.push({ pathname: '/new-duel', params: { opponent: friend.username } })
               }
             />
             {/*
@@ -115,7 +137,7 @@ function goBack() {
  * Marcador cara a cara y la tira de resultados. El marcador y el total salen
  * del propio historial: guardarlos aparte los dejaría desincronizarse.
  */
-function HeadToHeadCard({ record }: { record: FriendProfile['record'] }) {
+function HeadToHeadCard({ record }: { record: DuelOutcome[] }) {
   const wins = record.filter((outcome) => outcome === 'WIN').length;
   const losses = record.length - wins;
 

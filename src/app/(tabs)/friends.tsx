@@ -7,19 +7,29 @@ import { Button } from '@/components/atoms/button';
 import { Card } from '@/components/atoms/card';
 import { Chip } from '@/components/atoms/chip';
 import { EmptyState } from '@/components/organisms/empty-state';
+import { Notice } from '@/components/molecules/notice';
 import { SearchField } from '@/components/molecules/search-field';
 import { ThemedText } from '@/components/atoms/themed-text';
 import { ThemedView } from '@/components/atoms/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { FRIEND_REQUESTS, FRIENDS, type Friend, type FriendRequest } from '@/lib/demo-data';
+import { useFriendships, type FriendshipsState } from '@/hooks/use-friendships';
+import { RepositoryError, type Friend, type FriendRequest } from '@/repositories';
 
 /**
  * Amigos: solicitudes pendientes y la lista, con el atajo para retar.
  *
- * **Datos de demostración todavía.** Aceptar, rechazar y retar no mutan nada:
- * falta un `friendship-repository.ts` que envuelva las RPC
- * `send_friend_request` / `respond_to_friend_request`, que sí existen ya en el
- * esquema (`supabase/SCHEMA.md` §13).
+ * **Datos reales.** Salen de `friendshipRepository`, que envuelve las RPC de
+ * `supabase/SCHEMA.md` §13; aceptar y rechazar mutan de verdad y la lista se
+ * recarga sola al terminar.
+ *
+ * Dos cosas del diseño siguen sin backend detrás, y por eso se ven inertes:
+ * - **«Add friend»** no abre nada: no hay pantalla de búsqueda maquetada.
+ *   `searchByUsername()` y `sendRequest()` ya existen en el repositorio
+ *   esperándola.
+ * - **`IN DUEL`** no se puede pintar: saber si un amigo tiene un duelo en curso
+ *   necesita el `duel-repository.ts` (KAN-32). Hasta entonces se ofrece retar a
+ *   todo el mundo y es el servidor quien rechaza el duelo duplicado, en vez de
+ *   que la pantalla se invente un estado que no conoce.
  *
  * El buscador filtra en local sobre la lista cargada, que es lo correcto
  * mientras quepa entera en memoria; cuando venga paginada del servidor habrá
@@ -27,17 +37,43 @@ import { FRIEND_REQUESTS, FRIENDS, type Friend, type FriendRequest } from '@/lib
  */
 export default function FriendsScreen() {
   const [query, setQuery] = useState('');
+  const [actionError, setActionError] = useState<string | null>(null);
+  /** Amistad que está esperando respuesta del servidor, si hay alguna. */
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const { state, respondToRequest } = useFriendships();
+
+  async function handleRespond(friendshipId: string, accept: boolean) {
+    setActionError(null);
+    setBusyId(friendshipId);
+
+    try {
+      await respondToRequest(friendshipId, accept);
+    } catch (error) {
+      setActionError(
+        error instanceof RepositoryError ? error.message : 'No se pudo responder la solicitud.',
+      );
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  if (state.status !== 'ready') {
+    return <FriendsPlaceholder state={state} />;
+  }
+
+  const { friends, incoming } = state.data;
 
   const needle = query.trim().toLowerCase();
   const visible = needle
-    ? FRIENDS.filter((friend) => friend.username.toLowerCase().includes(needle))
-    : FRIENDS;
+    ? friends.filter((friend) => friend.username.toLowerCase().includes(needle))
+    : friends;
 
   // Sin un solo amigo la pantalla cambia entera: el diseño quita el buscador y
   // el botón de la cabecera y deja únicamente la invitación a empezar. Filtrar
   // una lista vacía no tiene sentido, y un buscador que nunca encuentra nada
   // se lee como que la app está rota.
-  if (FRIENDS.length === 0 && FRIEND_REQUESTS.length === 0) {
+  if (friends.length === 0 && incoming.length === 0) {
     return <FriendsEmptyScreen />;
   }
 
@@ -47,38 +83,74 @@ export default function FriendsScreen() {
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
             <ThemedText type="title">FRIENDS</ThemedText>
-            <Button label="Add friend" variant="secondary" />
+            <Button label="Add friend" variant="secondary" disabled />
           </View>
+
+          {actionError ? <Notice message={actionError} tone="rival" /> : null}
 
           <SearchField value={query} onChange={setQuery} />
 
-          {FRIEND_REQUESTS.length > 0 ? (
+          {incoming.length > 0 ? (
             <>
               <View style={styles.sectionHead}>
                 <ThemedText type="label" themeColor="textDim">
                   REQUESTS
                 </ThemedText>
-                <Chip label={String(FRIEND_REQUESTS.length)} tone="rival" />
+                <Chip label={String(incoming.length)} tone="rival" />
               </View>
 
-              {FRIEND_REQUESTS.map((request) => (
-                <RequestRow key={request.username} request={request} />
+              {incoming.map((request) => (
+                <RequestRow
+                  key={request.friendshipId}
+                  request={request}
+                  busy={busyId === request.friendshipId}
+                  onRespond={(accept) => handleRespond(request.friendshipId, accept)}
+                />
               ))}
             </>
           ) : null}
 
           <ThemedText type="label" themeColor="textDim">
-            {`ALL FRIENDS · ${FRIENDS.length}`}
+            {`ALL FRIENDS · ${friends.length}`}
           </ThemedText>
 
           {visible.length > 0 ? (
-            visible.map((friend) => <FriendRow key={friend.username} friend={friend} />)
+            visible.map((friend) => <FriendRow key={friend.friendshipId} friend={friend} />)
           ) : (
             <ThemedText type="small" themeColor="textDim" style={styles.empty}>
               No friends match that search.
             </ThemedText>
           )}
         </ScrollView>
+      </SafeAreaView>
+    </ThemedView>
+  );
+}
+
+/**
+ * Lo que se ve mientras la lista viaja, o si no llega. El diseño no maqueta
+ * ninguno de los dos casos, así que esto se queda en el título y una línea:
+ * nada inventado, pero tampoco una pantalla en blanco que parezca colgada.
+ *
+ * `signedOut` no debería verse nunca — el guard de sesión de `_layout.tsx` no
+ * deja entrar a las pestañas sin sesión — pero el tipo obliga a cubrirlo, y
+ * cubrirlo cuesta una línea.
+ */
+function FriendsPlaceholder({ state }: { state: FriendshipsState }) {
+  return (
+    <ThemedView style={styles.screen}>
+      <SafeAreaView edges={['top']} style={styles.safeArea}>
+        <View style={styles.content}>
+          <ThemedText type="title">FRIENDS</ThemedText>
+
+          {state.status === 'error' ? (
+            <Notice message={state.message} tone="rival" />
+          ) : (
+            <ThemedText type="small" themeColor="textDim" style={styles.empty}>
+              {state.status === 'loading' ? 'Loading friends…' : 'Sign in to see your friends.'}
+            </ThemedText>
+          )}
+        </View>
       </SafeAreaView>
     </ThemedView>
   );
@@ -121,7 +193,13 @@ function FriendsEmptyScreen() {
   );
 }
 
-function RequestRow({ request }: { request: FriendRequest }) {
+type RequestRowProps = {
+  request: FriendRequest;
+  busy: boolean;
+  onRespond: (accept: boolean) => void;
+};
+
+function RequestRow({ request, busy, onRespond }: RequestRowProps) {
   return (
     <Card style={styles.row}>
       {/* Avatar (KAN-19). */}
@@ -134,8 +212,13 @@ function RequestRow({ request }: { request: FriendRequest }) {
         </ThemedText>
       </View>
 
-      <Button label="Accept" />
-      <Button label="Decline" variant="secondary" />
+      <Button label="Accept" disabled={busy} onPress={() => onRespond(true)} />
+      <Button
+        label="Decline"
+        variant="secondary"
+        disabled={busy}
+        onPress={() => onRespond(false)}
+      />
     </Card>
   );
 }
@@ -144,7 +227,7 @@ function FriendRow({ friend }: { friend: Friend }) {
   return (
     <Card style={styles.row}>
       {/* Avatar (KAN-19). */}
-      <Card variant={friend.inDuel ? 'rival' : 'sunken'} style={styles.avatar} />
+      <Card variant="sunken" style={styles.avatar} />
 
       {/*
         Solo el cuerpo abre el perfil, no la card entera: si la fila completa
@@ -164,20 +247,12 @@ function FriendRow({ friend }: { friend: Friend }) {
         </ThemedText>
       </Pressable>
 
-      {/*
-        Con un duelo en curso el diseño no ofrece retar: pinta el estado. Un
-        botón que fallaría al pulsarlo es peor que no tenerlo.
-      */}
-      {friend.inDuel ? (
-        <Chip label="IN DUEL" tone="rival" />
-      ) : (
-        <Button
-          label="Challenge"
-          onPress={() =>
-            router.push({ pathname: '/new-duel', params: { opponent: friend.username } })
-          }
-        />
-      )}
+      <Button
+        label="Challenge"
+        onPress={() =>
+          router.push({ pathname: '/new-duel', params: { opponent: friend.username } })
+        }
+      />
     </Card>
   );
 }

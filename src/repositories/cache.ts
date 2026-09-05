@@ -12,6 +12,18 @@
  */
 export const DEFAULT_STALE_MS = 30_000;
 
+/**
+ * Suscripción a los cambios de sesión, en la forma que ya devuelve
+ * `ProfileRepository.onSessionChange`: recibe el oyente y devuelve cómo
+ * cancelarlo.
+ *
+ * Un `Cached<Entidad>Repository` de datos con sesión la pide por constructor
+ * en vez de importar el repositorio de perfil: así el decorador no depende de
+ * otra entidad, y es `index.ts` — el único sitio que conoce el montaje
+ * completo — quien los conecta.
+ */
+export type SessionChangeSource = (listener: () => void) => () => void;
+
 export class RepositoryCache<T> {
   private entry: { data: T; fetchedAt: number } | null = null;
   private pending: Promise<T> | null = null;

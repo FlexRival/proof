@@ -5,17 +5,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/atoms/button';
 import { Card } from '@/components/atoms/card';
-import { Chip } from '@/components/atoms/chip';
+import { Notice } from '@/components/molecules/notice';
 import { SearchField } from '@/components/molecules/search-field';
 import { ThemedText } from '@/components/atoms/themed-text';
 import { ThemedView } from '@/components/atoms/themed-view';
 import { ROUTES } from '@/constants/routes';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { useFriendships, type FriendshipsState } from '@/hooks/use-friendships';
 import { useProfile } from '@/hooks/use-profile';
 import { useTheme } from '@/hooks/use-theme';
-import { FRIENDS, type Friend } from '@/lib/demo-data';
 import { levelProgress } from '@/lib/xp';
-import type { Profile } from '@/repositories';
+import type { Friend, Profile } from '@/repositories';
 
 /**
  * Crear un duelo.
@@ -25,23 +25,41 @@ import type { Profile } from '@/repositories';
  * paso, no de pantalla. Con tres rutas, volver desde el paso 2 saldría del
  * asistente en vez de devolverte a elegir amigo.
  *
- * Se puede abrir con el rival ya puesto (`/new-duel?opponent=@alexruiz`, que
- * es lo que hace el botón «Challenge» de la lista de amigos); entonces empieza
- * directamente en el paso 2.
+ * La lista de amigos es **real** (`useFriendships`). Se puede abrir con el
+ * rival ya puesto (`/new-duel?opponent=@alexruiz`, que es lo que hace el botón
+ * «Challenge» de la lista de amigos); como esa lista viaja por red, la
+ * preselección se resuelve en cuanto llega, no en el primer render.
  *
- * **No crea nada todavía.** No existe `duel-repository.ts` ni RPC de crear
- * duelo a la que llamar, así que «START DUEL» cierra el asistente igual que
- * los demás botones sin backend. Es KAN-32 quien conecta esto a Supabase.
+ * **No crea nada todavía.** Falta el `duel-repository.ts` que envuelva
+ * `request_duel` (que sí existe, `supabase/SCHEMA.md` §6), así que «START
+ * DUEL» cierra el asistente. Es KAN-32 quien conecta esto a Supabase.
  */
 export default function NewDuelScreen() {
-  const { opponent: presetOpponent } = useLocalSearchParams<{ opponent?: string }>();
-  const preset = findChallengeable(presetOpponent);
+  const { opponent: presetUsername } = useLocalSearchParams<{ opponent?: string }>();
 
-  const [step, setStep] = useState<WizardStep>(preset ? 2 : 1);
-  const [opponent, setOpponent] = useState<Friend | null>(preset);
   const [duration, setDuration] = useState<DuelDuration>(DEFAULT_DURATION);
+  /**
+   * Lo que el usuario eligió **de forma explícita**, o `null` si todavía no ha
+   * tocado nada. Guardar la elección y el rival de la URL por separado deja
+   * derivar el estado real en el render: en cuanto la lista de amigos llega,
+   * la preselección resuelve sola, sin un efecto que reasigne estado (que es
+   * lo que prohíbe `react-hooks/set-state-in-effect`, y con razón: dispara un
+   * render extra). Y como la elección propia gana, volver al paso 1 no te
+   * devuelve al 2 la próxima vez que el hook recargue la lista.
+   */
+  const [chosenOpponent, setChosenOpponent] = useState<Friend | null>(null);
+  const [chosenStep, setChosenStep] = useState<WizardStep | null>(null);
 
   const { state: profileState } = useProfile();
+  const { state: friendsState } = useFriendships();
+
+  const preset =
+    presetUsername && friendsState.status === 'ready'
+      ? (friendsState.data.friends.find((friend) => friend.username === presetUsername) ?? null)
+      : null;
+
+  const opponent = chosenOpponent ?? preset;
+  const step: WizardStep = chosenStep ?? (preset ? 2 : 1);
 
   function goBack() {
     if (step === 1) {
@@ -49,7 +67,7 @@ export default function NewDuelScreen() {
       return;
     }
 
-    setStep(step === 3 ? 2 : 1);
+    setChosenStep(step === 3 ? 2 : 1);
   }
 
   return (
@@ -74,34 +92,40 @@ export default function NewDuelScreen() {
           <StepProgress step={step} />
 
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-            {step === 1 ? <ChooseFriendStep selected={opponent} onSelect={setOpponent} /> : null}
+            {step === 1 ? (
+              <ChooseFriendStep
+                state={friendsState}
+                selected={opponent}
+                onSelect={setChosenOpponent}
+              />
+            ) : null}
 
             {step === 2 && opponent ? (
               <SetDuelStep
                 opponent={opponent}
                 duration={duration}
                 onChangeDuration={setDuration}
-                onChangeOpponent={() => setStep(1)}
+                onChangeOpponent={() => setChosenStep(1)}
               />
             ) : null}
 
             {step === 3 && opponent && profileState.status === 'ready' ? (
-              <ConfirmStep
-                you={profileState.data}
-                opponent={opponent}
-                duration={duration}
-              />
+              <ConfirmStep you={profileState.data} opponent={opponent} duration={duration} />
             ) : null}
           </ScrollView>
 
           <View style={styles.footer}>
             {step === 1 ? (
-              <Button label="Continue" disabled={opponent === null} onPress={() => setStep(2)} />
+              <Button
+                label="Continue"
+                disabled={opponent === null}
+                onPress={() => setChosenStep(2)}
+              />
             ) : null}
 
             {step === 2 && opponent ? (
               <>
-                <Button label="Review duel" onPress={() => setStep(3)} />
+                <Button label="Review duel" onPress={() => setChosenStep(3)} />
                 <ThemedText type="label" themeColor="textDim" style={styles.footerNote}>
                   {`${handleOf(opponent).toUpperCase()} MUST CONFIRM BEFORE IT STARTS`}
                 </ThemedText>
@@ -127,15 +151,6 @@ const DEFAULT_DURATION: DuelDuration = 3;
 /** `@alexruiz` → `alexruiz`. El diseño rotula el aviso del paso 2 sin arroba. */
 function handleOf(friend: Friend): string {
   return friend.username.replace(/^@/, '');
-}
-
-/**
- * Un amigo con un duelo en curso no se puede retar otra vez, así que un enlace
- * que lo traiga preseleccionado se ignora y el asistente arranca en el paso 1.
- */
-function findChallengeable(username: string | undefined): Friend | null {
-  const friend = FRIENDS.find((candidate) => candidate.username === username);
-  return friend && !friend.inDuel ? friend : null;
 }
 
 /** Vuelve por donde se vino; si no hay historial, a la pantalla principal. */
@@ -168,23 +183,42 @@ function StepProgress({ step }: { step: WizardStep }) {
 }
 
 type ChooseFriendStepProps = {
+  state: FriendshipsState;
   selected: Friend | null;
   onSelect: (friend: Friend) => void;
 };
 
-function ChooseFriendStep({ selected, onSelect }: ChooseFriendStepProps) {
+function ChooseFriendStep({ state, selected, onSelect }: ChooseFriendStepProps) {
   const [query, setQuery] = useState('');
+
+  if (state.status !== 'ready') {
+    return (
+      <>
+        <ThemedText type="title">{'CHOOSE\nA FRIEND'}</ThemedText>
+
+        {state.status === 'error' ? (
+          <Notice message={state.message} tone="rival" />
+        ) : (
+          <ThemedText type="small" themeColor="textDim" style={styles.empty}>
+            {state.status === 'loading' ? 'Loading friends…' : 'Sign in to challenge a friend.'}
+          </ThemedText>
+        )}
+      </>
+    );
+  }
+
+  const { friends } = state.data;
 
   const needle = query.trim().toLowerCase();
   const visible = needle
-    ? FRIENDS.filter((friend) => friend.username.toLowerCase().includes(needle))
-    : FRIENDS;
+    ? friends.filter((friend) => friend.username.toLowerCase().includes(needle))
+    : friends;
 
   return (
     <>
       <ThemedText type="title">{'CHOOSE\nA FRIEND'}</ThemedText>
 
-      {FRIENDS.length === 0 ? (
+      {friends.length === 0 ? (
         <ThemedText type="small" themeColor="textDim" style={styles.empty}>
           Add a friend first to challenge them to a duel.
         </ThemedText>
@@ -195,9 +229,9 @@ function ChooseFriendStep({ selected, onSelect }: ChooseFriendStepProps) {
           {visible.length > 0 ? (
             visible.map((friend) => (
               <FriendOption
-                key={friend.username}
+                key={friend.friendshipId}
                 friend={friend}
-                selected={friend.username === selected?.username}
+                selected={friend.userId === selected?.userId}
                 onSelect={() => onSelect(friend)}
               />
             ))
@@ -219,23 +253,20 @@ type FriendOptionProps = {
 };
 
 /**
- * Fila seleccionable de la lista. Con un duelo en curso queda inerte y marcada
- * `IN DUEL`, la misma regla que en la lista de amigos: dejar elegirla solo
- * serviría para fallar tres pasos más tarde.
+ * Fila seleccionable de la lista.
+ *
+ * El diseño marca `IN DUEL` y deja inertes a los amigos con un duelo en curso.
+ * Eso no se puede pintar sin el `duel-repository.ts` (KAN-32): se ofrecen
+ * todos, y quien rechaza el duelo duplicado es `request_duel` en el servidor.
  */
 function FriendOption({ friend, selected, onSelect }: FriendOptionProps) {
   const theme = useTheme();
-  const disabled = friend.inDuel;
 
   return (
-    <Pressable
-      accessibilityRole="radio"
-      accessibilityState={{ selected, disabled }}
-      disabled={disabled}
-      onPress={onSelect}>
+    <Pressable accessibilityRole="radio" accessibilityState={{ selected }} onPress={onSelect}>
       <Card variant={selected ? 'highlight' : 'default'} style={styles.option}>
         {/* Avatar (KAN-19). */}
-        <Card variant={disabled ? 'rival' : 'sunken'} style={styles.avatar} />
+        <Card variant="sunken" style={styles.avatar} />
 
         <View style={styles.optionBody}>
           <ThemedText type="bodyBold">{friend.username}</ThemedText>
@@ -243,8 +274,6 @@ function FriendOption({ friend, selected, onSelect }: FriendOptionProps) {
             {`LV ${friend.level} · 🔥 ${friend.streakDays} DAYS`}
           </ThemedText>
         </View>
-
-        {disabled ? <Chip label="IN DUEL" tone="rival" /> : null}
 
         {selected ? (
           <View style={[styles.check, { backgroundColor: theme.primary }]}>

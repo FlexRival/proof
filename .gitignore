@@ -47,5 +47,14 @@ example
 # design screenshots (local only)
 capturadiseño/
 
+# láminas de Instagram generadas (local only, se regeneran)
+capturas-instagram/
+
 # handoff local, no se sube
 CONTINUAR.md
+
+# marketing / Instagram (local only, nada de esto se sube)
+docs/marketing/
+scripts/instagram-*.html
+scripts/render-instagram-slides.sh
+*.instagram.*
