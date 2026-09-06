@@ -29,6 +29,17 @@ export type ClanWarStatus = 'PENDING' | 'ACTIVE' | 'FINISHED' | 'DECLINED';
 
 export type FriendshipStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED';
 
+export type SubscriptionStatus =
+  | 'ACTIVE'
+  | 'IN_GRACE_PERIOD'
+  | 'CANCELLED'
+  | 'EXPIRED'
+  | 'PAUSED';
+
+export type SubscriptionStore = 'APP_STORE' | 'PLAY_STORE' | 'STRIPE' | 'PROMOTIONAL';
+
+export type SubscriptionEnvironment = 'SANDBOX' | 'PRODUCTION';
+
 // ---------------------------------------------------------------------------
 // Filas
 // ---------------------------------------------------------------------------
@@ -166,6 +177,27 @@ export type FriendshipRow = {
   responded_at: string | null;
 };
 
+/**
+ * Estado de suscripción del usuario (RevenueCat). El cliente solo lee su
+ * propia fila y solo las columnas no sensibles: `rc_app_user_id`,
+ * `last_event_id` y `last_event_at` tienen `GRANT` solo a `service_role`, así
+ * que no aparecen aquí. `profiles.is_pro` es el cache rápido derivado de esto.
+ * Ver `supabase/SCHEMA.md` §16.
+ */
+export type SubscriptionRow = {
+  user_id: string;
+  entitlement: string;
+  status: SubscriptionStatus;
+  store: SubscriptionStore | null;
+  product_id: string | null;
+  /** ISO-8601, o `null` para una concesión sin caducidad. */
+  current_period_end: string | null;
+  will_renew: boolean;
+  environment: SubscriptionEnvironment;
+  created_at: string;
+  updated_at: string;
+};
+
 // ---------------------------------------------------------------------------
 // Esquema
 // ---------------------------------------------------------------------------
@@ -224,6 +256,8 @@ export type Database = {
       clan_wars: ReadOnlyTable<ClanWarRow>;
       clan_war_participants: ReadOnlyTable<ClanWarParticipantRow>;
       friendships: ReadOnlyTable<FriendshipRow>;
+      /** Solo lectura de la propia fila; la mueven los webhooks de RevenueCat. */
+      subscriptions: ReadOnlyTable<SubscriptionRow>;
     };
     Views: {
       clan_leaderboard: {
@@ -342,6 +376,9 @@ export type Database = {
       clan_join_request_status: ClanJoinRequestStatus;
       clan_war_status: ClanWarStatus;
       friendship_status: FriendshipStatus;
+      subscription_status: SubscriptionStatus;
+      subscription_store: SubscriptionStore;
+      subscription_environment: SubscriptionEnvironment;
     };
     CompositeTypes: Record<never, never>;
   };

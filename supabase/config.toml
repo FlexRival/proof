@@ -370,6 +370,21 @@ authorization_url_path = "/oauth/consent"
 # Allow dynamic client registration
 allow_dynamic_registration = false
 
+# El webhook de RevenueCat manda un header `Authorization` de valor fijo (un
+# secreto compartido), NO un JWT de Supabase. Sin esto el gateway lo rechaza
+# antes de llegar a la función; la validación del secreto está en su auth.ts.
+[functions.revenuecat-webhook]
+verify_jwt = false
+
+# La reconciliación la llama la app con la sesión del usuario: se exige JWT.
+[functions.revenuecat-reconcile]
+verify_jwt = true
+
+# El cron interno la invoca con la service_role key (un JWT válido); la
+# función además comprueba el claim `role`.
+[functions.resolve-expired-competitions]
+verify_jwt = true
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

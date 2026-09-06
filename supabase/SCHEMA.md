@@ -16,6 +16,8 @@ Referencia de la capa de datos (Supabase / Postgres). Léela antes de tocar
 | `migrations/20260904100000_clan_war_stats_view.sql` | Vista `clan_war_stats`: victorias / derrotas / empates / pasos totales de cada clan en guerras, agregados desde `clan_wars`. Ver §11. |
 | `migrations/20260904110000_friendships.sql` | Amistades: tabla `friendships` (solicitud → aceptada/rechazada/cancelada), índice único parcial que impide duplicados en cualquier dirección; RPCs `send_friend_request` / `respond_to_friend_request` / `cancel_friend_request` / `remove_friend`. Ver §13. |
 | `migrations/20260905130000_profile_avatar.sql` | Foto de perfil: columna `profiles.avatar_url`, bucket público `avatars` en Storage, policies de `storage.objects` que solo dejan subir/reemplazar/borrar dentro de la propia carpeta `<user_id>/...`. Ver §14. |
+| `migrations/20260906120000_subscriptions.sql` | Suscripciones (RevenueCat): tablas `subscriptions` (una fila por usuario, entitlement único `pro`) y `subscription_events` (idempotencia + auditoría de webhooks); enums `subscription_status` / `subscription_store` / `subscription_environment`; `profiles.is_pro` pasa a ser cache derivado; funciones `refresh_is_pro` / `apply_subscription_event` / `reconcile_subscription` / `expire_subscription` / `expire_stale_subscriptions` (`SECURITY DEFINER`, solo `service_role`). Ver §15. |
+| `migrations/20260906121000_expire_subscriptions_cron.sql` | Programa un job de `pg_cron` cada hora que llama a `expire_stale_subscriptions()` — red de seguridad para webhooks `EXPIRATION` perdidos. Sin `pg_net` ni secretos: la lógica es SQL. Ver §15. |
 
 Estado de aplicación:
 
@@ -23,20 +25,27 @@ Estado de aplicación:
   proyecto vinculado (`tirhukkivndhmlknvbfr`).
 - Las de clanes (`…150000_clans`, `…150500_clan_wars`), la del cron
   (`…090000_resolve_expired_competitions_cron`), la de amistades
-  (`…110000_friendships`) y la de foto de perfil (`…130000_profile_avatar`)
-  **todavía no se han hecho `supabase db push`**. Las de clanes y la de
-  amistades se validaron ejecutándolas sobre un Postgres 18 efímero (PGlite)
-  con su flujo completo; la de foto de perfil se validó sobre el stack local
-  real de Supabase (`supabase start`, Docker), incluso contra la API real de
-  Storage, no solo SQL (ver §14); la del cron **no se puede validar así**
-  porque ni PGlite ni el stack local por defecto traen `pg_cron`/`pg_net`
-  activos — solo se prueba contra un proyecto Supabase real.
+  (`…110000_friendships`), la de foto de perfil (`…130000_profile_avatar`) y
+  las dos de suscripciones (`…120000_subscriptions`,
+  `…121000_expire_subscriptions_cron`) **todavía no se han hecho
+  `supabase db push`**. Las de clanes y la de amistades se validaron
+  ejecutándolas sobre un Postgres 18 efímero (PGlite) con su flujo completo;
+  la de foto de perfil se validó sobre el stack local real de Supabase
+  (`supabase start`, Docker), incluso contra la API real de Storage, no solo
+  SQL (ver §14). `…120000_subscriptions` se validó sobre PGlite con su flujo
+  completo (30 asserts: alta, idempotencia, cancelación, expiración, sandbox,
+  app_user_id anónimo, grace period, reconciliación, TRANSFER, cron de
+  caducidad, RLS, grants de columna). Los dos ficheros de cron
+  (`…090000_…`, `…121000_…`) **no se pueden validar así** porque ni PGlite ni
+  el stack local por defecto traen `pg_cron`/`pg_net` activos — solo se
+  prueban contra un proyecto Supabase real.
 
 Hubo una migración de cosméticos de personaje
 (`20260905120000_cosmetics.sql`) que se borró sin más: nunca se hizo
 `supabase db push` de ella a ningún proyecto real, así que no hacía falta una
 migración de reversa — la funcionalidad completa (personaje RPG equipable) se
 descartó.
+
 
 ---
 
@@ -541,6 +550,95 @@ actualizado y visible en el `Image` de la pantalla. Aún sin
 
 ---
 
+## 15. Suscripciones — RevenueCat (`20260906120000_subscriptions.sql`)
+
+Monetización. **RevenueCat es la fuente de verdad de los entitlements**: el SDK
+cliente (`react-native-purchases`) hace la compra con la store, y el backend
+solo mantiene sincronizado el estado aquí desde los webhooks de RevenueCat.
+Mismo principio anti-cheat que el resto: el cliente nunca escribe, y ni
+siquiera confía en su propio SDK — `profiles.is_pro` solo lo mueve el servidor.
+
+**Un solo entitlement: `pro`.** Free vs Pro, sin tiers. Mensual y anual otorgan
+el mismo `pro`. Qué desbloquea Pro sigue por definir (ver CLAUDE.md); esta capa
+no depende de ello — cada capacidad Pro nueva solo añade un check `is_pro` en
+su RPC (o en la Edge Function correspondiente).
+
+### Tablas
+
+- **`subscriptions`** — una fila por usuario (`PRIMARY KEY (user_id)`). El
+  estado real que un booleano no puede guardar: `status` (enum
+  `subscription_status`: `ACTIVE` / `IN_GRACE_PERIOD` / `CANCELLED` / `EXPIRED`
+  / `PAUSED`), `store`, `product_id`, `current_period_end`, `will_renew`,
+  `environment` (`PRODUCTION` / `SANDBOX`), `rc_app_user_id`. RLS: cada quien
+  ve **solo su propia fila**. `GRANT SELECT` de columnas — `rc_app_user_id`,
+  `last_event_id`, `last_event_at` son solo servidor. En `supabase_realtime`.
+- **`subscription_events`** — log crudo de cada webhook. `event_id` (el de
+  RevenueCat) es PK → **idempotencia**: RevenueCat reintenta los webhooks y un
+  evento ya visto se ignora. Privada (sin grants a `authenticated`/`anon`).
+  `user_id` con `ON DELETE SET NULL` para conservar el rastro de facturación.
+
+### `profiles.is_pro` es un cache derivado
+
+Deja de ser un dato independiente. `refresh_is_pro(user_id)` (el **único** sitio
+que lo escribe) lo recalcula: es Pro si tiene una fila de `subscriptions` de
+**producción** que está `ACTIVE`, o `IN_GRACE_PERIOD` / `CANCELLED` con
+`current_period_end` aún en el futuro. `PAUSED` y `EXPIRED` nunca son Pro.
+Cancelar el auto-renovado (`CANCELLED`) **no** quita Pro de inmediato: se
+disfruta hasta el fin del periodo pagado.
+
+### Funciones (`SECURITY DEFINER`, `search_path = ''`, solo `service_role`)
+
+| Función | Quién la llama | Qué hace |
+|---|---|---|
+| `refresh_is_pro(user_id)` | las demás funciones de esta lista | recalcula `profiles.is_pro` desde `subscriptions` |
+| `apply_subscription_event(...)` | Edge Function `revenuecat-webhook` | idempotencia por `event_id`; upsert en `subscriptions`; `refresh_is_pro`. `p_status = NULL` → solo registra (TRANSFER, TEST). Devuelve `(applied, is_pro)` |
+| `reconcile_subscription(...)` | Edge Function `revenuecat-reconcile` | foto autoritativa desde la REST API de RevenueCat; upsert + `refresh_is_pro` |
+| `expire_subscription(user_id)` | `revenuecat-webhook` (TRANSFER) | fuerza `EXPIRED` para quien pierde el entitlement |
+| `expire_stale_subscriptions()` | cron `pg_cron` cada hora | expira `ACTIVE`/`CANCELLED` cuyo periodo venció hace > 3 días sin que llegara ningún evento — red de seguridad para webhooks perdidos. No toca `IN_GRACE_PERIOD` (lo resuelve RevenueCat) |
+
+### Edge Functions
+
+- **`revenuecat-webhook`** — recibe los webhooks. `verify_jwt = false` (el
+  webhook no manda un JWT de Supabase, manda un header `Authorization` de
+  valor fijo); se valida contra el secreto `REVENUECAT_WEBHOOK_AUTH`. Traduce
+  el evento (`event-mapping.ts`) y llama a `apply_subscription_event`. Trata
+  `TRANSFER` aparte (expira a cada `transferred_from`), ignora eventos de
+  otros entitlements, responde `200` al `TEST` del dashboard.
+- **`revenuecat-reconcile`** — la llama la app al arrancar. `verify_jwt = true`;
+  el `app_user_id` consultado es **siempre** el `sub` del JWT del usuario,
+  nunca un parámetro. Consulta `GET /v1/subscribers/{id}` con
+  `REVENUECAT_SECRET_API_KEY` y llama a `reconcile_subscription`.
+
+### `rc_app_user_id` === uuid de Supabase
+
+La app llama a `Purchases.logIn(session.user.id)` tras el login, así que el App
+User ID de RevenueCat es el `auth.users.id`. Por eso el webhook mapea el evento
+a un perfil sin tabla de traducción. Un `app_user_id` anónimo
+(`$RCAnonymousID:…`, de alguien que compró antes de loguear) no mapea a ningún
+perfil: el evento se registra en `subscription_events` con `user_id` nulo y no
+toca nada. Para evitar ese caso, **el paywall va detrás del login**.
+
+### Secretos (alta manual, una vez por proyecto)
+
+No van en git ni en Vault (los leen las funciones, no SQL):
+
+```
+supabase secrets set REVENUECAT_WEBHOOK_AUTH='<valor del dashboard de RevenueCat>'
+supabase secrets set REVENUECAT_SECRET_API_KEY='<Secret API key v1 de RevenueCat>'
+```
+
+Y en RevenueCat: Project → Integrations → Webhooks → URL de `revenuecat-webhook`
++ ese mismo `REVENUECAT_WEBHOOK_AUTH` en "Authorization header value".
+
+### Validación
+
+`20260906120000_subscriptions.sql` se ejecutó sobre PGlite con su flujo
+completo (30 asserts, ver "Estado de aplicación" arriba). El cron
+(`20260906121000_…`) no es validable sobre PGlite (`pg_cron`); la función que
+invoca sí. Aún sin `supabase db push`.
+
+---
+
 ## Placeholders a revisar
 
 - Ratio pasos → XP (`/10`).
@@ -550,3 +648,5 @@ actualizado y visible en el `Image` de la pantalla. Aún sin
 - Umbrales de tier de clan (`100 / 300 / 700 / 1500`).
 - Cupo de clan `max_members` (`20`) y duración por defecto de guerra (`7` días).
 - Frecuencia del cron de cierre de duelos/guerras (`cada hora`).
+- Margen del cron de caducidad de suscripciones (`3 días` tras vencer el
+  periodo sin evento) y su frecuencia (`cada hora`) — ver §15.

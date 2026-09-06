@@ -111,9 +111,21 @@ ProofIt es una app RPG móvil desarrollada con Expo (React Native) donde los pas
   `cancel_friend_request`, `remove_friend`). A diferencia de clanes, la tabla
   no es pública — solo la ven los dos implicados. Ver `supabase/SCHEMA.md` §13.
 - **Estado de migraciones:** las 2 migraciones de clanes
-  (`20260903150000_clans.sql`, `20260903150500_clan_wars.sql`) y la de
-  amistades (`20260904110000_friendships.sql`) aún no se han hecho
+  (`20260903150000_clans.sql`, `20260903150500_clan_wars.sql`), la de
+  amistades (`20260904110000_friendships.sql`) y las de suscripciones
+  (`20260906120000_subscriptions.sql`,
+  `20260906121000_expire_subscriptions_cron.sql`) aún no se han hecho
   `supabase db push` al proyecto vinculado.
+- **Suscripciones (RevenueCat):** un solo entitlement `pro` (Free vs Pro, sin
+  tiers). RevenueCat es la fuente de verdad; el backend sincroniza el estado
+  vía webhook. Tabla `subscriptions` + `subscription_events` (idempotencia);
+  `profiles.is_pro` pasa a ser un **cache derivado** que solo mueve
+  `refresh_is_pro()`. Edge Functions `revenuecat-webhook` (`verify_jwt=false`,
+  valida el secreto `REVENUECAT_WEBHOOK_AUTH`) y `revenuecat-reconcile`
+  (la app al arrancar). Qué desbloquea Pro sigue **por definir** — la capa de
+  datos no depende de ello. Ver `supabase/SCHEMA.md` §15. Requiere dar de alta
+  a mano `REVENUECAT_WEBHOOK_AUTH` y `REVENUECAT_SECRET_API_KEY`
+  (`supabase secrets set`).
 - **Cierre automático de duelos/guerras:** la Edge Function
   `supabase/functions/resolve-expired-competitions/` + un cron de `pg_cron`
   (migración `20260904090000_resolve_expired_competitions_cron.sql`) llaman a
