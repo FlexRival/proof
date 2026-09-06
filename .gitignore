@@ -55,6 +55,6 @@ CONTINUAR.md
 
 # marketing / Instagram (local only, nada de esto se sube)
 docs/marketing/
-scripts/instagram-*.html
-scripts/render-instagram-slides.sh
+scripts/instagram-*
+scripts/render-instagram-*
 *.instagram.*
