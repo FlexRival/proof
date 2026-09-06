@@ -122,10 +122,17 @@ ProofIt es una app RPG móvil desarrollada con Expo (React Native) donde los pas
   `profiles.is_pro` pasa a ser un **cache derivado** que solo mueve
   `refresh_is_pro()`. Edge Functions `revenuecat-webhook` (`verify_jwt=false`,
   valida el secreto `REVENUECAT_WEBHOOK_AUTH`) y `revenuecat-reconcile`
-  (la app al arrancar). Qué desbloquea Pro sigue **por definir** — la capa de
-  datos no depende de ello. Ver `supabase/SCHEMA.md` §15. Requiere dar de alta
-  a mano `REVENUECAT_WEBHOOK_AUTH` y `REVENUECAT_SECRET_API_KEY`
+  (la app al arrancar). Qué más desbloquea Pro sigue **por definir** — la capa
+  de datos no depende de ello. Ver `supabase/SCHEMA.md` §15. Requiere dar de
+  alta a mano `REVENUECAT_WEBHOOK_AUTH` y `REVENUECAT_SECRET_API_KEY`
   (`supabase secrets set`).
+- **Límite de duelos gratis (primera puerta Pro):** `request_duel` limita a los
+  usuarios con `is_pro = false` a `free_tier_daily_duel_limit()` duelos creados
+  por día (hoy `1`); Pro sin límite. El check vive en la RPC, no en una Edge
+  Function (es la única vía para crear un duelo). El rechazo por cupo llega con
+  `ERRCODE 'PRO01'` para que el cliente abra el paywall en vez de un toast de
+  error. Migración `20260906122000_free_tier_duel_limit.sql`, ver
+  `supabase/SCHEMA.md` §6.
 - **Cierre automático de duelos/guerras:** la Edge Function
   `supabase/functions/resolve-expired-competitions/` + un cron de `pg_cron`
   (migración `20260904090000_resolve_expired_competitions_cron.sql`) llaman a

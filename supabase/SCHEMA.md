@@ -18,6 +18,7 @@ Referencia de la capa de datos (Supabase / Postgres). Léela antes de tocar
 | `migrations/20260905130000_profile_avatar.sql` | Foto de perfil: columna `profiles.avatar_url`, bucket público `avatars` en Storage, policies de `storage.objects` que solo dejan subir/reemplazar/borrar dentro de la propia carpeta `<user_id>/...`. Ver §14. |
 | `migrations/20260906120000_subscriptions.sql` | Suscripciones (RevenueCat): tablas `subscriptions` (una fila por usuario, entitlement único `pro`) y `subscription_events` (idempotencia + auditoría de webhooks); enums `subscription_status` / `subscription_store` / `subscription_environment`; `profiles.is_pro` pasa a ser cache derivado; funciones `refresh_is_pro` / `apply_subscription_event` / `reconcile_subscription` / `expire_subscription` / `expire_stale_subscriptions` (`SECURITY DEFINER`, solo `service_role`). Ver §15. |
 | `migrations/20260906121000_expire_subscriptions_cron.sql` | Programa un job de `pg_cron` cada hora que llama a `expire_stale_subscriptions()` — red de seguridad para webhooks `EXPIRATION` perdidos. Sin `pg_net` ni secretos: la lógica es SQL. Ver §15. |
+| `migrations/20260906122000_free_tier_duel_limit.sql` | Primera puerta de pago: redefine `request_duel` para limitar a los usuarios gratis (`is_pro = false`) a `free_tier_daily_duel_limit()` duelos creados por día (hoy `1`); Pro sin límite. Helper `free_tier_daily_duel_limit()`. Rechazo con `ERRCODE 'PRO01'`. Ver §6. |
 
 Estado de aplicación:
 
@@ -25,9 +26,10 @@ Estado de aplicación:
   proyecto vinculado (`tirhukkivndhmlknvbfr`).
 - Las de clanes (`…150000_clans`, `…150500_clan_wars`), la del cron
   (`…090000_resolve_expired_competitions_cron`), la de amistades
-  (`…110000_friendships`), la de foto de perfil (`…130000_profile_avatar`) y
-  las dos de suscripciones (`…120000_subscriptions`,
-  `…121000_expire_subscriptions_cron`) **todavía no se han hecho
+  (`…110000_friendships`), la de foto de perfil (`…130000_profile_avatar`), las
+  dos de suscripciones (`…120000_subscriptions`,
+  `…121000_expire_subscriptions_cron`) y la del límite de duelos gratis
+  (`…122000_free_tier_duel_limit`) **todavía no se han hecho
   `supabase db push`**. Las de clanes y la de amistades se validaron
   ejecutándolas sobre un Postgres 18 efímero (PGlite) con su flujo completo;
   la de foto de perfil se validó sobre el stack local real de Supabase
@@ -35,10 +37,13 @@ Estado de aplicación:
   SQL (ver §14). `…120000_subscriptions` se validó sobre PGlite con su flujo
   completo (30 asserts: alta, idempotencia, cancelación, expiración, sandbox,
   app_user_id anónimo, grace period, reconciliación, TRANSFER, cron de
-  caducidad, RLS, grants de columna). Los dos ficheros de cron
-  (`…090000_…`, `…121000_…`) **no se pueden validar así** porque ni PGlite ni
-  el stack local por defecto traen `pg_cron`/`pg_net` activos — solo se
-  prueban contra un proyecto Supabase real.
+  caducidad, RLS, grants de columna). `…122000_free_tier_duel_limit` se validó
+  sobre PGlite (15 asserts: cupo gratis, `ERRCODE 'PRO01'`, rechazo ajeno no
+  gasta cupo, duelo `ACTIVE` sí, corte por día, Pro sin límite, aceptar
+  entrantes no cuenta, resto de validaciones de `request_duel` intactas). Los
+  dos ficheros de cron (`…090000_…`, `…121000_…`) **no se pueden validar así**
+  porque ni PGlite ni el stack local por defecto traen `pg_cron`/`pg_net`
+  activos — solo se prueban contra un proyecto Supabase real.
 
 Hubo una migración de cosméticos de personaje
 (`20260905120000_cosmetics.sql`) que se borró sin más: nunca se hizo
@@ -193,6 +198,20 @@ El retador crea un duelo `PENDING`. Rechaza: duelos contra uno mismo, duraciones
 fuera de 1–30, oponentes inexistentes, y un segundo duelo cuando ya hay uno
 `PENDING`/`ACTIVE` entre esas dos personas (en cualquier dirección). La ventana
 en este punto es provisional.
+
+**Límite de la versión gratuita** (`20260906122000_free_tier_duel_limit.sql`,
+primera puerta de pago — ver §15). Un usuario con `profiles.is_pro = false` solo
+puede **crear `free_tier_daily_duel_limit()` duelos por día** natural del
+servidor; un usuario Pro no tiene límite. El cupo cuenta los duelos creados hoy
+por el usuario como retador cuyo estado **no** sea `DECLINED` — que el oponente
+rechace un duelo que le mandaste no te gasta el cupo, y como no puedes rechazar
+tus propios duelos salientes no es explotable. Aceptar un duelo entrante
+(`respond_to_duel`) nunca cuenta: el límite es solo sobre *crear*. El rechazo
+por cupo se lanza con `ERRCODE = 'PRO01'` para que el cliente lo distinga y
+enrute al paywall. Va dentro de la RPC, no en una Edge Function: es la única vía
+para crear un duelo (`INSERT` directo está revocado), así que es infranqueable.
+`free_tier_daily_duel_limit()` es un helper `IMMUTABLE` con el número (hoy `1`) —
+placeholder tuneable, igual que `daily_step_goal()`.
 
 ### `respond_to_duel(duel_id, accept)`
 
@@ -650,3 +669,5 @@ invoca sí. Aún sin `supabase db push`.
 - Frecuencia del cron de cierre de duelos/guerras (`cada hora`).
 - Margen del cron de caducidad de suscripciones (`3 días` tras vencer el
   periodo sin evento) y su frecuencia (`cada hora`) — ver §15.
+- Límite diario de duelos de la versión gratuita (`free_tier_daily_duel_limit()`
+  = `1`) y la ventana que lo mide (`día natural del servidor`) — ver §6.

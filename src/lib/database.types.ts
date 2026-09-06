@@ -282,6 +282,9 @@ export type Database = {
       level_for_xp: { Args: { p_xp: number }; Returns: number };
       daily_step_goal: { Args: Record<never, never>; Returns: number };
 
+      /** Duelos que un usuario gratis puede crear al día (Pro sin límite). */
+      free_tier_daily_duel_limit: { Args: Record<never, never>; Returns: number };
+
       // ---- Consultas de clan ----
       clan_role_of: {
         Args: { p_clan_id: string; p_user_id: string };
