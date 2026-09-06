@@ -11,8 +11,10 @@ import { Notice } from '@/components/molecules/notice';
 import { SearchField } from '@/components/molecules/search-field';
 import { ThemedText } from '@/components/atoms/themed-text';
 import { ThemedView } from '@/components/atoms/themed-view';
+import { ROUTES } from '@/constants/routes';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useFriendships, type FriendshipsState } from '@/hooks/use-friendships';
+import { useTranslation } from '@/hooks/use-translation';
 import { RepositoryError, type Friend, type FriendRequest } from '@/repositories';
 
 /**
@@ -22,10 +24,10 @@ import { RepositoryError, type Friend, type FriendRequest } from '@/repositories
  * `supabase/SCHEMA.md` §13; aceptar y rechazar mutan de verdad y la lista se
  * recarga sola al terminar.
  *
- * Dos cosas del diseño siguen sin backend detrás, y por eso se ven inertes:
- * - **«Add friend»** no abre nada: no hay pantalla de búsqueda maquetada.
- *   `searchByUsername()` y `sendRequest()` ya existen en el repositorio
- *   esperándola.
+ * **«Add friend»** abre `/find-friends`, que es donde se busca gente nueva y
+ * se le manda solicitud.
+ *
+ * Lo que sigue sin backend detrás, y por eso se ve inerte:
  * - **`IN DUEL`** no se puede pintar: saber si un amigo tiene un duelo en curso
  *   necesita el `duel-repository.ts` (KAN-32). Hasta entonces se ofrece retar a
  *   todo el mundo y es el servidor quien rechaza el duelo duplicado, en vez de
@@ -42,6 +44,7 @@ export default function FriendsScreen() {
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const { state, respondToRequest } = useFriendships();
+  const { t } = useTranslation();
 
   async function handleRespond(friendshipId: string, accept: boolean) {
     setActionError(null);
@@ -51,7 +54,7 @@ export default function FriendsScreen() {
       await respondToRequest(friendshipId, accept);
     } catch (error) {
       setActionError(
-        error instanceof RepositoryError ? error.message : 'No se pudo responder la solicitud.',
+        error instanceof RepositoryError ? error.message : t('friends.respondFailed'),
       );
     } finally {
       setBusyId(null);
@@ -82,8 +85,8 @@ export default function FriendsScreen() {
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            <ThemedText type="title">FRIENDS</ThemedText>
-            <Button label="Add friend" variant="secondary" disabled />
+            <ThemedText type="title">{t('friends.title')}</ThemedText>
+            <Button label={t('friends.addFriend')} variant="secondary" onPress={openFindFriends} />
           </View>
 
           {actionError ? <Notice message={actionError} tone="rival" /> : null}
@@ -94,7 +97,7 @@ export default function FriendsScreen() {
             <>
               <View style={styles.sectionHead}>
                 <ThemedText type="label" themeColor="textDim">
-                  REQUESTS
+                  {t('friends.requests')}
                 </ThemedText>
                 <Chip label={String(incoming.length)} tone="rival" />
               </View>
@@ -111,20 +114,29 @@ export default function FriendsScreen() {
           ) : null}
 
           <ThemedText type="label" themeColor="textDim">
-            {`ALL FRIENDS · ${friends.length}`}
+            {t('friends.allFriends', { count: friends.length })}
           </ThemedText>
 
           {visible.length > 0 ? (
             visible.map((friend) => <FriendRow key={friend.friendshipId} friend={friend} />)
           ) : (
             <ThemedText type="small" themeColor="textDim" style={styles.empty}>
-              No friends match that search.
+              {t('friends.noMatches')}
             </ThemedText>
           )}
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
   );
+}
+
+/**
+ * Abre la búsqueda de gente nueva. La usan los dos sitios desde los que se
+ * añaden amigos —la cabecera de la lista y el vacío— para que no puedan
+ * acabar llevando a pantallas distintas.
+ */
+function openFindFriends() {
+  router.push(ROUTES.findFriends.href);
 }
 
 /**
@@ -137,17 +149,19 @@ export default function FriendsScreen() {
  * cubrirlo cuesta una línea.
  */
 function FriendsPlaceholder({ state }: { state: FriendshipsState }) {
+  const { t } = useTranslation();
+
   return (
     <ThemedView style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <View style={styles.content}>
-          <ThemedText type="title">FRIENDS</ThemedText>
+          <ThemedText type="title">{t('friends.title')}</ThemedText>
 
           {state.status === 'error' ? (
             <Notice message={state.message} tone="rival" />
           ) : (
             <ThemedText type="small" themeColor="textDim" style={styles.empty}>
-              {state.status === 'loading' ? 'Loading friends…' : 'Sign in to see your friends.'}
+              {t(state.status === 'loading' ? 'friends.loading' : 'friends.signedOut')}
             </ThemedText>
           )}
         </View>
@@ -161,23 +175,26 @@ function FriendsPlaceholder({ state }: { state: FriendshipsState }) {
  * interrogación donde iría el rival.
  */
 function FriendsEmptyScreen() {
+  const { t } = useTranslation();
+
   return (
     <ThemedView style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <ThemedText type="title">FRIENDS</ThemedText>
+          <ThemedText type="title">{t('friends.title')}</ThemedText>
 
           <EmptyState
-            title="BUILD YOUR RIVALRY"
-            message="Add friends to start competing."
-            actionLabel="Find friends"
-            note="Invite by username or share your link">
+            title={t('friends.emptyTitle')}
+            message={t('friends.emptyMessage')}
+            actionLabel={t('friends.emptyAction')}
+            onAction={openFindFriends}
+            note={t('friends.emptyNote')}>
             <View style={styles.versus}>
               {/* Personajes (KAN-19): reservan el espacio del diseño. */}
               <Card variant="sunken" style={styles.versusSlot} />
 
               <ThemedText type="label" themeColor="textDim">
-                VS
+                {t('friends.versus')}
               </ThemedText>
 
               <Card variant="sunken" style={styles.versusSlot}>
@@ -200,6 +217,8 @@ type RequestRowProps = {
 };
 
 function RequestRow({ request, busy, onRespond }: RequestRowProps) {
+  const { t } = useTranslation();
+
   return (
     <Card style={styles.row}>
       {/* Avatar (KAN-19). */}
@@ -208,13 +227,13 @@ function RequestRow({ request, busy, onRespond }: RequestRowProps) {
       <View style={styles.rowBody}>
         <ThemedText type="bodyBold">{request.username}</ThemedText>
         <ThemedText type="caption" themeColor="textMuted">
-          {`LV ${request.level}`}
+          {t('common.levelShort', { level: request.level })}
         </ThemedText>
       </View>
 
-      <Button label="Accept" disabled={busy} onPress={() => onRespond(true)} />
+      <Button label={t('friends.accept')} disabled={busy} onPress={() => onRespond(true)} />
       <Button
-        label="Decline"
+        label={t('friends.decline')}
         variant="secondary"
         disabled={busy}
         onPress={() => onRespond(false)}
@@ -224,6 +243,8 @@ function RequestRow({ request, busy, onRespond }: RequestRowProps) {
 }
 
 function FriendRow({ friend }: { friend: Friend }) {
+  const { t } = useTranslation();
+
   return (
     <Card style={styles.row}>
       {/* Avatar (KAN-19). */}
@@ -236,19 +257,19 @@ function FriendRow({ friend }: { friend: Friend }) {
       */}
       <Pressable
         accessibilityRole="link"
-        accessibilityLabel={`Open ${friend.username}'s profile`}
+        accessibilityLabel={t('friends.openProfile', { username: friend.username })}
         onPress={() =>
           router.push({ pathname: '/friend-profile', params: { username: friend.username } })
         }
         style={styles.rowBody}>
         <ThemedText type="bodyBold">{friend.username}</ThemedText>
         <ThemedText type="caption" themeColor="textMuted">
-          {`LV ${friend.level} · 🔥 ${friend.streakDays} DAYS`}
+          {t('friends.levelAndStreak', { level: friend.level, days: friend.streakDays })}
         </ThemedText>
       </Pressable>
 
       <Button
-        label="Challenge"
+        label={t('friends.challenge')}
         onPress={() =>
           router.push({ pathname: '/new-duel', params: { opponent: friend.username } })
         }

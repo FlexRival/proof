@@ -3,6 +3,7 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { ThemedText } from '@/components/atoms/themed-text';
 import { XpBar } from '@/components/molecules/xp-bar';
 import { Spacing } from '@/constants/theme';
+import { useTranslation } from '@/hooks/use-translation';
 import { formatCount } from '@/lib/format';
 
 /**
@@ -21,6 +22,7 @@ export type XpProgressProps = {
 };
 
 export function XpProgress({ level, xpIntoLevel, xpForNextLevel, style }: XpProgressProps) {
+  const { t } = useTranslation();
   const xpToNextLevel = xpForNextLevel - xpIntoLevel;
 
   return (
@@ -29,10 +31,13 @@ export function XpProgress({ level, xpIntoLevel, xpForNextLevel, style }: XpProg
 
       <View style={styles.row}>
         <ThemedText type="caption" themeColor="xp">
-          {`${formatCount(xpIntoLevel)} / ${formatCount(xpForNextLevel)} XP`}
+          {t('xp.progress', {
+            into: formatCount(xpIntoLevel),
+            total: formatCount(xpForNextLevel),
+          })}
         </ThemedText>
         <ThemedText type="caption" themeColor="textMuted">
-          {`${formatCount(xpToNextLevel)} XP TO LV ${level + 1}`}
+          {t('xp.toNextLevel', { remaining: formatCount(xpToNextLevel), level: level + 1 })}
         </ThemedText>
       </View>
     </View>

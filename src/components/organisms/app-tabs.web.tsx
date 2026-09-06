@@ -12,9 +12,12 @@ import { ThemedText } from '@/components/atoms/themed-text';
 import { ThemedView } from '@/components/atoms/themed-view';
 
 import { TAB_ROUTES } from '@/constants/routes';
+import { useTranslation } from '@/hooks/use-translation';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 
 export default function AppTabs() {
+  const { t } = useTranslation();
+
   return (
     <Tabs>
       <TabSlot style={{ height: '100%' }} />
@@ -22,7 +25,9 @@ export default function AppTabs() {
         <CustomTabList>
           {TAB_ROUTES.map((route) => (
             <TabTrigger key={route.key} name={route.key} href={route.href} asChild>
-              <TabButton>{route.label}</TabButton>
+              {/* El texto sale del catálogo, no de `route.label`: ese es el
+                  nombre interno de la ruta y no cambia con el idioma. */}
+              <TabButton>{t(`nav.${route.key}`)}</TabButton>
             </TabTrigger>
           ))}
         </CustomTabList>

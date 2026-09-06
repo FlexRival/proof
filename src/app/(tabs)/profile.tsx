@@ -3,14 +3,15 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/atoms/button';
-import { Card } from '@/components/atoms/card';
+import { ProfilePhoto } from '@/components/molecules/profile-photo';
 import { StatTile } from '@/components/molecules/stat-tile';
 import { ThemedText } from '@/components/atoms/themed-text';
 import { ThemedView } from '@/components/atoms/themed-view';
 import { XpProgress } from '@/components/organisms/xp-progress';
 import { ROUTES } from '@/constants/routes';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useProfile } from '@/hooks/use-profile';
+import { useTranslation } from '@/hooks/use-translation';
 import { PROFILE_DEMO } from '@/lib/demo-data';
 import { formatCompact, formatCount } from '@/lib/format';
 import { levelProgress } from '@/lib/xp';
@@ -19,8 +20,11 @@ import { levelProgress } from '@/lib/xp';
  * Perfil del jugador: nivel y su historial de duelos.
  *
  * **No hay ningún personaje RPG que represente al usuario** (se descartó a
- * propósito, junto con el sistema de cosméticos que lo dibujaba) — el
- * recuadro de la cabecera es un hueco reservado, no un avatar.
+ * propósito, junto con el sistema de cosméticos que lo dibujaba). Lo que
+ * ocupa ese sitio es la **foto de perfil real** de la cuenta, la misma que se
+ * sube desde Ajustes; si el usuario no ha subido ninguna, queda el hueco
+ * reservado del diseño. Enseñarla aquí es KAN-64: la pantalla pintaba siempre
+ * el hueco y la foto subida no aparecía en ningún sitio salvo Ajustes.
  *
  * Identidad (username, nivel, XP, racha) es **dato real de la sesión**
  * (`useProfile`). Victorias, derrotas, duelos y pasos totales **siguen en
@@ -40,6 +44,7 @@ import { levelProgress } from '@/lib/xp';
  */
 export default function ProfileScreen() {
   const { state: profileState } = useProfile();
+  const { t } = useTranslation();
 
   // Todavía de mentira: sin duel-repository ni agregación de step_logs no hay
   // de dónde sacar esto de verdad. Ver el comentario de arriba.
@@ -53,7 +58,7 @@ export default function ProfileScreen() {
     return <ThemedView style={styles.screen} />;
   }
 
-  const { username, xp, streakDays } = profileState.data;
+  const { username, xp, streakDays, avatarUrl } = profileState.data;
   const { level, xpIntoLevel, xpForNextLevel } = levelProgress(xp);
 
   return (
@@ -61,34 +66,34 @@ export default function ProfileScreen() {
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            <ThemedText type="subheading">CHARACTER</ThemedText>
+            <ThemedText type="subheading">{t('profile.title')}</ThemedText>
             <Button
-              label="Settings"
+              label={t('common.settings')}
               variant="secondary"
               onPress={() => router.push(ROUTES.settings.href)}
             />
           </View>
 
-          <Card style={styles.character} />
+          <ProfilePhoto avatarUrl={avatarUrl} style={styles.character} />
 
           <ThemedText type="bodyBold" style={styles.identity}>
             {username}
           </ThemedText>
 
-          <ThemedText type="heading" style={styles.level}>{`LEVEL ${level}`}</ThemedText>
+          <ThemedText type="heading" style={styles.level}>{t('common.level', { level })}</ThemedText>
 
           <XpProgress level={level} xpIntoLevel={xpIntoLevel} xpForNextLevel={xpForNextLevel} />
 
           <View style={styles.statsRow}>
-            <StatTile label="WINS" value={formatCount(wins)} valueColor="victory" />
-            <StatTile label="LOSSES" value={formatCount(losses)} valueColor="defeat" />
-            <StatTile label="WIN RATE" value={`${winRate}%`} />
+            <StatTile label={t('profile.wins')} value={formatCount(wins)} valueColor="victory" />
+            <StatTile label={t('profile.losses')} value={formatCount(losses)} valueColor="defeat" />
+            <StatTile label={t('profile.winRate')} value={`${winRate}%`} />
           </View>
 
           <View style={styles.statsRow}>
-            <StatTile label="DUELS" value={formatCount(duels)} />
-            <StatTile label="STREAK" value={`🔥 ${formatCount(streakDays)}`} />
-            <StatTile label="TOTAL STEPS" value={formatCompact(totalSteps)} />
+            <StatTile label={t('profile.duels')} value={formatCount(duels)} />
+            <StatTile label={t('profile.streak')} value={`🔥 ${formatCount(streakDays)}`} />
+            <StatTile label={t('profile.totalSteps')} value={formatCompact(totalSteps)} />
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -121,6 +126,9 @@ const styles = StyleSheet.create({
     width: '70%',
     alignSelf: 'center',
     aspectRatio: 0.85,
+    // Lo traía `Card` por su cuenta; la foto lo necesita explícito para
+    // recortarse con la misma forma que el hueco al que sustituye.
+    borderRadius: Radius.lg,
   },
   identity: {
     textAlign: 'center',

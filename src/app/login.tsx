@@ -9,14 +9,36 @@ import { TextField } from '@/components/molecules/text-field';
 import { ThemedText } from '@/components/atoms/themed-text';
 import { ThemedView } from '@/components/atoms/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { useTranslation } from '@/hooks/use-translation';
 import { profileRepository, RepositoryError } from '@/repositories';
 
 type Mode = 'signIn' | 'signUp';
 
-const MODE_OPTIONS: SegmentedOption<Mode>[] = [
-  { value: 'signIn', label: 'Sign in' },
-  { value: 'signUp', label: 'Sign up' },
-];
+/** La función de traducir, para las ayudantes que viven fuera del componente. */
+type Translate = ReturnType<typeof useTranslation>['t'];
+
+/**
+ * Las dos pestañas. Es función y no constante de módulo porque su texto
+ * cambia con el idioma: una constante se congelaría en el idioma que hubiera
+ * al cargar el archivo.
+ */
+function modeOptions(t: Translate): SegmentedOption<Mode>[] {
+  return [
+    { value: 'signIn', label: t('login.signIn') },
+    { value: 'signUp', label: t('login.signUp') },
+  ];
+}
+
+/**
+ * Mínimo que exige Supabase Auth por defecto. Se comprueba también aquí para
+ * poder decirlo *antes* de enviar: si solo lo valida el servidor, el usuario
+ * rellena el formulario entero para que le rebote.
+ *
+ * Si el proyecto sube el mínimo en su configuración, este número se queda
+ * corto y el servidor seguirá rechazando — su error se sigue enseñando tal
+ * cual, así que el formulario no miente, solo deja de adelantarse.
+ */
+const MIN_PASSWORD_LENGTH = 6;
 
 /**
  * Puerta de entrada sin sesión. `src/app/_layout.tsx` la muestra en vez de
@@ -34,10 +56,14 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
+  const { t } = useTranslation();
+
   const canSubmit =
     !submitting &&
     email.trim().length > 0 &&
-    password.length > 0 &&
+    // Al entrar vale cualquier longitud: la contraseña ya existe y quien
+    // manda es el servidor. El mínimo solo aplica a la que se está creando.
+    (mode === 'signIn' ? password.length > 0 : password.length >= MIN_PASSWORD_LENGTH) &&
     (mode === 'signIn' || username.trim().length >= 3);
 
   async function handleSubmit() {
@@ -56,12 +82,12 @@ export default function LoginScreen() {
         );
 
         if (needsEmailConfirmation) {
-          setInfo('Check your email to confirm your account before signing in.');
+          setInfo(t('login.confirmEmail'));
         }
       }
     } catch (caught) {
       setError(
-        caught instanceof RepositoryError ? caught.message : 'Something went wrong. Try again.',
+        caught instanceof RepositoryError ? caught.message : t('common.somethingWentWrong'),
       );
     } finally {
       setSubmitting(false);
@@ -75,55 +101,80 @@ export default function LoginScreen() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
-          <ThemedText type="title" style={styles.title}>
-            PROOFIT
-          </ThemedText>
+          <View style={styles.brand}>
+            <ThemedText type="title" style={styles.centered}>
+              PROOFIT
+            </ThemedText>
+            <ThemedText type="small" themeColor="textMuted" style={styles.centered}>
+              {t('login.tagline')}
+            </ThemedText>
+          </View>
 
-          <SegmentedControl options={MODE_OPTIONS} value={mode} onChange={setMode} />
+          <SegmentedControl options={modeOptions(t)} value={mode} onChange={setMode} />
 
           <View style={styles.fields}>
             {mode === 'signUp' && (
               <TextField
-                label="Username"
+                label={t('login.username')}
                 value={username}
                 onChangeText={setUsername}
                 autoCapitalize="none"
                 autoCorrect={false}
-                placeholder="Heroe_1234"
+                placeholder={t('login.usernamePlaceholder')}
               />
             )}
 
             <TextField
-              label="Email"
+              label={t('login.email')}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
-              placeholder="you@example.com"
+              placeholder={t('login.emailPlaceholder')}
             />
 
             <TextField
-              label="Password"
+              label={t('login.password')}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+              revealable
               placeholder="••••••••"
             />
+
+            {/*
+              Solo al crear cuenta: en «sign in» la contraseña ya existe y
+              recordarle el mínimo a quien solo intenta entrar es ruido.
+            */}
+            {mode === 'signUp' ? (
+              <ThemedText type="caption" themeColor="textDim">
+                {t('login.passwordHint', { count: MIN_PASSWORD_LENGTH })}
+              </ThemedText>
+            ) : null}
           </View>
 
           {error ? <Notice tone="rival" message={error} /> : null}
           {info ? <Notice tone="info" message={info} /> : null}
 
-          <Button
-            label={mode === 'signIn' ? 'Sign in' : 'Create account'}
-            onPress={handleSubmit}
-            disabled={!canSubmit}
-          />
+          <Button label={submitLabel(t, mode, submitting)} onPress={handleSubmit} disabled={!canSubmit} />
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
   );
+}
+
+/**
+ * El botón es el único sitio donde se ve que la petición está en marcha:
+ * deshabilitarlo sin más deja la pantalla igual que si no hubiera pasado
+ * nada, y el usuario vuelve a pulsar.
+ */
+function submitLabel(t: Translate, mode: Mode, submitting: boolean): string {
+  if (mode === 'signIn') {
+    return t(submitting ? 'login.signingIn' : 'login.signIn');
+  }
+
+  return t(submitting ? 'login.creatingAccount' : 'login.createAccount');
 }
 
 const styles = StyleSheet.create({
@@ -138,6 +189,7 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
     gap: Spacing.four,
   },
-  title: { textAlign: 'center' },
+  brand: { gap: Spacing.one },
+  centered: { textAlign: 'center' },
   fields: { gap: Spacing.three },
 });

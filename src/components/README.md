@@ -17,7 +17,10 @@ clasificado: o se sube el átomo de nivel, o se baja lo que necesita.
 - **`atoms/`** — `ThemedText`, `ThemedView`, `Button`, `Card`, `Chip`,
   `MeterBar`, `AnimatedSplashOverlay`.
 - **`molecules/`** — `TextField`, `SearchField`, `SegmentedControl`,
-  `StatTile`, `Notice`, `XpBar`, `LevelUpBadge`.
+  `StatTile`, `Notice`, `XpBar`, `LevelUpBadge`, `PlanOption`,
+  `ProfilePhoto` (la foto de perfil de un usuario, o el hueco reservado si no
+  ha subido ninguna; la usan la cabecera de Perfil, la fila de Ajustes y los
+  resultados de buscar amigos).
 - **`organisms/`** — `XpProgress` (nivel + `XpBar`), `EmptyState`
   (ilustración + copy + `Button`), `AppTabs` (la barra de pestañas).
 

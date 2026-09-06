@@ -62,6 +62,11 @@ export default function RootLayout() {
           */}
           <Stack.Screen name="new-duel" options={{ presentation: 'modal' }} />
           {/*
+            Buscar a quién añadir es otra tarea con principio y fin: se abre
+            desde la lista de amigos y devuelve ahí al cerrarse.
+          */}
+          <Stack.Screen name="find-friends" options={{ presentation: 'modal' }} />
+          {/*
             El perfil de un amigo sí es un destino, no una tarea: se apila
             sobre la lista de amigos y se vuelve con el botón de atrás, como
             ajustes.

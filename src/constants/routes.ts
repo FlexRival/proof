@@ -21,6 +21,7 @@ export type RouteKey =
   | 'levelUp'
   | 'victory'
   | 'newDuel'
+  | 'findFriends'
   | 'friendProfile'
   | 'paywall'
   | 'login';
@@ -65,6 +66,12 @@ export const ROUTES: Record<RouteKey, RouteDefinition> = {
    * (`/new-duel?opponent=@alexruiz`). El `href` de aquí es la ruta pelada.
    */
   newDuel: { key: 'newDuel', href: '/new-duel', label: 'New duel', tab: false },
+  /**
+   * Buscar gente a la que mandar solicitud de amistad. Tarea, no destino: se
+   * abre desde la lista de amigos —tanto desde «Add friend» como desde el
+   * vacío de «Find friends»— y se cierra volviendo.
+   */
+  findFriends: { key: 'findFriends', href: '/find-friends', label: 'Find friends', tab: false },
   /**
    * Perfil de otro jugador. Se abre desde una fila de la lista de amigos con
    * el usuario en la URL (`/friend-profile?username=@alexruiz`); el `href` de

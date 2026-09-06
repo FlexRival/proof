@@ -13,6 +13,7 @@ import { XpProgress } from '@/components/organisms/xp-progress';
 import { ROUTES } from '@/constants/routes';
 import { BottomTabInset, MaxContentWidth, Spacing, type ThemeColor } from '@/constants/theme';
 import { useProfile } from '@/hooks/use-profile';
+import { useTranslation } from '@/hooks/use-translation';
 import { formatCount } from '@/lib/format';
 import { HOME_DEMO, type DuelSide } from '@/lib/demo-data';
 import { levelProgress } from '@/lib/xp';
@@ -40,6 +41,7 @@ import { levelProgress } from '@/lib/xp';
  */
 export default function HomeScreen() {
   const { state: profileState } = useProfile();
+  const { t } = useTranslation();
 
   const { steps, stepGoal, duel } = HOME_DEMO;
 
@@ -77,7 +79,7 @@ export default function HomeScreen() {
               {/* Personaje (KAN-19): reserva el espacio del diseño. */}
               <Card style={styles.character} />
 
-              <ThemedText type="heading" style={styles.level}>{`LEVEL ${level}`}</ThemedText>
+              <ThemedText type="heading" style={styles.level}>{t('common.level', { level })}</ThemedText>
 
               <XpProgress
                 level={level}
@@ -87,13 +89,16 @@ export default function HomeScreen() {
 
               <Card style={styles.block}>
                 <ThemedText type="label" themeColor="textDim">
-                  TODAY&apos;S STEPS
+                  {t('home.todaysSteps')}
                 </ThemedText>
                 <ThemedText type="title" themeColor="steps">
                   {formatCount(steps)}
                 </ThemedText>
                 <ThemedText type="caption" themeColor="textMuted">
-                  {`+${formatCount(stepsToGoal)} to goal · ${formatCount(stepGoal)}`}
+                  {t('home.toGoal', {
+                    remaining: formatCount(stepsToGoal),
+                    goal: formatCount(stepGoal),
+                  })}
                 </ThemedText>
                 <MeterBar value={steps} max={stepGoal} tone="steps" />
               </Card>
@@ -101,7 +106,7 @@ export default function HomeScreen() {
               <Card variant="highlight" style={styles.block}>
                 <View style={styles.spread}>
                   <ThemedText type="label" themeColor="primary">
-                    CURRENT DUEL
+                    {t('home.currentDuel')}
                   </ThemedText>
                   <ThemedText type="label" themeColor="textMuted">
                     {duel.endsIn}
@@ -111,11 +116,11 @@ export default function HomeScreen() {
                 <DuelSideRow side={duel.you} tone="power" leader={duelLeader} />
                 <DuelSideRow side={duel.rival} tone="rival" leader={duelLeader} />
 
-                <Button label="View duel" />
+                <Button label={t('home.viewDuel')} />
               </Card>
 
               <Button
-                label="Challenge a friend"
+                label={t('home.challengeAFriend')}
                 variant="secondary"
                 onPress={() => router.push(ROUTES.newDuel.href)}
               />
@@ -137,12 +142,14 @@ export default function HomeScreen() {
  * enseñar la barra de XP aquí sería enseñar algo que no se mueve.
  */
 function NoDuelState({ steps }: { steps: number }) {
+  const { t } = useTranslation();
+
   return (
     <>
       <EmptyState
-        title="NO ACTIVE DUELS"
-        message="Challenge someone and prove who's got it."
-        actionLabel="Challenge a friend"
+        title={t('home.emptyTitle')}
+        message={t('home.emptyMessage')}
+        actionLabel={t('home.challengeAFriend')}
         onAction={() => router.push(ROUTES.newDuel.href)}>
         {/* Personaje inactivo (KAN-19): reserva el espacio del diseño. */}
         <Card variant="sunken" style={styles.idleCharacter} />
@@ -155,7 +162,7 @@ function NoDuelState({ steps }: { steps: number }) {
       <Card style={styles.idleSteps}>
         <View style={styles.idleStepsBody}>
           <ThemedText type="label" themeColor="textDim">
-            TODAY&apos;S STEPS
+            {t('home.todaysSteps')}
           </ThemedText>
           <ThemedText type="title" themeColor="steps">
             {formatCount(steps)}
@@ -163,7 +170,7 @@ function NoDuelState({ steps }: { steps: number }) {
         </View>
 
         <ThemedText type="caption" themeColor="textMuted" style={styles.idleStepsNote}>
-          Win a duel to turn steps into XP
+          {t('home.stepsIntoXp')}
         </ThemedText>
       </Card>
     </>

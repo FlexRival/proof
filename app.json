@@ -40,6 +40,7 @@
           "photosPermission": "ProofIt needs access to your photos so you can set a profile picture."
         }
       ],
+      "expo-localization",
       "react-native-health-connect",
       [
         "expo-sensors",

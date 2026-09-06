@@ -11,6 +11,7 @@ import { ThemedText } from '@/components/atoms/themed-text';
 import { ThemedView } from '@/components/atoms/themed-view';
 import { BottomTabInset, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/use-translation';
 import {
   ACTIVE_DUELS,
   FEATURED_DUEL,
@@ -34,31 +35,42 @@ import { formatCount } from '@/lib/format';
  */
 type DuelFilter = 'active' | 'pending' | 'history';
 
-const FILTERS: SegmentedOption<DuelFilter>[] = [
-  { value: 'active', label: 'ACTIVE' },
-  { value: 'pending', label: 'PENDING' },
-  { value: 'history', label: 'HISTORY' },
-];
+/** La función de traducir, para las ayudantes que viven fuera del componente. */
+type Translate = ReturnType<typeof useTranslation>['t'];
+
+/**
+ * Los tres filtros. Función y no constante de módulo porque su texto cambia
+ * con el idioma: una constante se congelaría en el idioma que hubiera cuando
+ * se cargó el archivo.
+ */
+function filterOptions(t: Translate): SegmentedOption<DuelFilter>[] {
+  return [
+    { value: 'active', label: t('duels.filterActive') },
+    { value: 'pending', label: t('duels.filterPending') },
+    { value: 'history', label: t('duels.filterHistory') },
+  ];
+}
 
 export default function DuelsScreen() {
   const [filter, setFilter] = useState<DuelFilter>('active');
+  const { t } = useTranslation();
 
   return (
     <ThemedView style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.intro}>
-            <ThemedText type="title">DUELS</ThemedText>
-            <ThemedText themeColor="textMuted">Prove who&apos;s stronger.</ThemedText>
+            <ThemedText type="title">{t('duels.title')}</ThemedText>
+            <ThemedText themeColor="textMuted">{t('duels.subtitle')}</ThemedText>
           </View>
 
-          <SegmentedControl options={FILTERS} value={filter} onChange={setFilter} />
+          <SegmentedControl options={filterOptions(t)} value={filter} onChange={setFilter} />
 
           {filter === 'active' ? <ActiveDuels /> : null}
           {filter === 'pending' ? <PendingDuels /> : null}
           {filter === 'history' ? (
             <ThemedText type="small" themeColor="textDim" style={styles.empty}>
-              No finished duels yet.
+              {t('duels.noFinished')}
             </ThemedText>
           ) : null}
         </ScrollView>
@@ -68,10 +80,12 @@ export default function DuelsScreen() {
 }
 
 function ActiveDuels() {
+  const { t } = useTranslation();
+
   if (!FEATURED_DUEL && ACTIVE_DUELS.length === 0) {
     return (
       <ThemedText type="small" themeColor="textDim" style={styles.empty}>
-        No active duels yet.
+        {t('duels.noActive')}
       </ThemedText>
     );
   }
@@ -88,6 +102,7 @@ function ActiveDuels() {
 }
 
 function FeaturedDuelCard({ duel }: { duel: ActiveDuel }) {
+  const { t } = useTranslation();
   const { opponent, yourSteps, theirSteps, endsIn } = duel;
   const leading = yourSteps >= theirSteps;
 
@@ -95,7 +110,7 @@ function FeaturedDuelCard({ duel }: { duel: ActiveDuel }) {
     <Card variant="highlight" style={styles.block}>
       <View style={styles.spread}>
         <Notice
-          message={leading ? 'YOU ARE LEADING' : 'YOU ARE BEHIND'}
+          message={t(leading ? 'duels.leading' : 'duels.behind')}
           tone={leading ? 'primary' : 'rival'}
           style={styles.status}
         />
@@ -108,19 +123,19 @@ function FeaturedDuelCard({ duel }: { duel: ActiveDuel }) {
         {/* Personajes (KAN-19): reservan el espacio del diseño. */}
         <Card style={styles.versusCharacter} />
         <ThemedText type="smallBold" themeColor="textMuted">
-          VS
+          {t('duels.versus')}
         </ThemedText>
         <Card variant="rival" style={styles.versusCharacter} />
       </View>
 
       <View style={styles.spread}>
-        <SideCount label="STEPS" value={yourSteps} color="primary" />
-        <SideCount label="STEPS" value={theirSteps} color="defeat" align="right" />
+        <SideCount label={t('duels.steps')} value={yourSteps} color="primary" />
+        <SideCount label={t('duels.steps')} value={theirSteps} color="defeat" align="right" />
       </View>
 
       <VersusBar yourSteps={yourSteps} theirSteps={theirSteps} />
 
-      <Button label={`View duel vs ${opponent}`} />
+      <Button label={t('duels.viewDuelVs', { opponent })} />
     </Card>
   );
 }
@@ -163,6 +178,7 @@ function SideCount({ label, value, color, align = 'left' }: SideCountProps) {
 }
 
 function DuelRow({ duel }: { duel: ActiveDuel }) {
+  const { t } = useTranslation();
   const { opponent, yourSteps, theirSteps, endsIn } = duel;
   const ahead = yourSteps >= theirSteps;
   const gap = Math.abs(yourSteps - theirSteps);
@@ -174,9 +190,9 @@ function DuelRow({ duel }: { duel: ActiveDuel }) {
 
       <View style={styles.rowBody}>
         <View style={styles.spread}>
-          <ThemedText type="bodyBold">{`vs ${opponent}`}</ThemedText>
+          <ThemedText type="bodyBold">{t('duels.vsOpponent', { opponent })}</ThemedText>
           <ThemedText type="smallBold" themeColor={ahead ? 'primary' : 'defeat'}>
-            {`${ahead ? 'AHEAD' : 'BEHIND'} ${formatCount(gap)}`}
+            {t(ahead ? 'duels.ahead' : 'duels.behindBy', { gap: formatCount(gap) })}
           </ThemedText>
         </View>
 
@@ -195,10 +211,12 @@ function DuelRow({ duel }: { duel: ActiveDuel }) {
 }
 
 function PendingDuels() {
+  const { t } = useTranslation();
+
   if (INCOMING_DUELS.length === 0 && OUTGOING_DUELS.length === 0) {
     return (
       <ThemedText type="small" themeColor="textDim" style={styles.empty}>
-        No pending duels.
+        {t('duels.noPending')}
       </ThemedText>
     );
   }
@@ -208,7 +226,7 @@ function PendingDuels() {
       {INCOMING_DUELS.length > 0 ? (
         <>
           <ThemedText type="label" themeColor="textDim">
-            INCOMING
+            {t('duels.incoming')}
           </ThemedText>
           {INCOMING_DUELS.map((duel) => (
             <PendingRow key={duel.opponent} duel={duel} incoming />
