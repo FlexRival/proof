@@ -15,8 +15,10 @@ import { CachedFriendshipRepository } from '@/repositories/cached-friendship-rep
 import { CachedProfileRepository } from '@/repositories/cached-profile-repository';
 import type { FriendshipRepository } from '@/repositories/friendship-repository';
 import type { ProfileRepository } from '@/repositories/profile-repository';
+import type { StepsRepository } from '@/repositories/steps-repository';
 import { SupabaseFriendshipRepository } from '@/repositories/supabase/friendship-repository';
 import { SupabaseProfileRepository } from '@/repositories/supabase/profile-repository';
+import { SupabaseStepsRepository } from '@/repositories/supabase/steps-repository';
 
 export type { PickedImage, Profile, ProfileRepository } from '@/repositories/profile-repository';
 export type {
@@ -26,6 +28,7 @@ export type {
   Friendships,
   ProfileMatch,
 } from '@/repositories/friendship-repository';
+export type { StepSyncOutcome, StepsRepository } from '@/repositories/steps-repository';
 export { RepositoryError } from '@/repositories/errors';
 
 const profiles = new CachedProfileRepository(new SupabaseProfileRepository(supabase));
@@ -42,3 +45,11 @@ export const friendshipRepository: FriendshipRepository = new CachedFriendshipRe
   new SupabaseFriendshipRepository(supabase),
   (listener) => profiles.onSessionChange(listener),
 );
+
+/**
+ * Sin caché a propósito (regla 5 al revés): es sobre todo escritura, y sus
+ * lecturas tienen que reflejar el estado exacto del servidor justo después de
+ * sincronizar — el servidor recorta y aplica `GREATEST`, así que un valor
+ * guardado de hace 30 segundos podría no ser el que decide el duelo.
+ */
+export const stepsRepository: StepsRepository = new SupabaseStepsRepository(supabase);

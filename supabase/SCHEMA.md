@@ -19,6 +19,7 @@ Referencia de la capa de datos (Supabase / Postgres). Léela antes de tocar
 | `migrations/20260906120000_subscriptions.sql` | Suscripciones (RevenueCat): tablas `subscriptions` (una fila por usuario, entitlement único `pro`) y `subscription_events` (idempotencia + auditoría de webhooks); enums `subscription_status` / `subscription_store` / `subscription_environment`; `profiles.is_pro` pasa a ser cache derivado; funciones `refresh_is_pro` / `apply_subscription_event` / `reconcile_subscription` / `expire_subscription` / `expire_stale_subscriptions` (`SECURITY DEFINER`, solo `service_role`). Ver §15. |
 | `migrations/20260906121000_expire_subscriptions_cron.sql` | Programa un job de `pg_cron` cada hora que llama a `expire_stale_subscriptions()` — red de seguridad para webhooks `EXPIRATION` perdidos. Sin `pg_net` ni secretos: la lógica es SQL. Ver §15. |
 | `migrations/20260906122000_free_tier_duel_limit.sql` | Primera puerta de pago: redefine `request_duel` para limitar a los usuarios gratis (`is_pro = false`) a `free_tier_daily_duel_limit()` duelos creados por día (hoy `1`); Pro sin límite. Helper `free_tier_daily_duel_limit()`. Rechazo con `ERRCODE 'PRO01'`. Ver §6. |
+| `migrations/20260906130000_step_sync_anticheat.sql` | Anti-cheat del marcador: **revoca el `INSERT`/`UPDATE` directo del cliente sobre `step_logs`** y lo sustituye por las RPCs `sync_daily_steps` / `sync_daily_steps_batch`, con tope diario (`daily_step_cap()`), ventana de fechas (`step_sync_backfill_days()`) y monotonía por día. Columnas de auditoría `source` / `reported_steps` / `synced_at`. Rechazos con `ERRCODE 'STP01'` (fecha) y `'STP02'` (origen). Ver §16. |
 
 Estado de aplicación:
 
@@ -28,9 +29,11 @@ Estado de aplicación:
   (`…090000_resolve_expired_competitions_cron`), la de amistades
   (`…110000_friendships`), la de foto de perfil (`…130000_profile_avatar`), las
   dos de suscripciones (`…120000_subscriptions`,
-  `…121000_expire_subscriptions_cron`) y la del límite de duelos gratis
-  (`…122000_free_tier_duel_limit`) **todavía no se han hecho
-  `supabase db push`**. Las de clanes y la de amistades se validaron
+  `…121000_expire_subscriptions_cron`), la del límite de duelos gratis
+  (`…122000_free_tier_duel_limit`) y la del anti-cheat de pasos
+  (`…130000_step_sync_anticheat`) **todavía no se han hecho
+  `supabase db push`**.
+  Las de clanes y la de amistades se validaron
   ejecutándolas sobre un Postgres 18 efímero (PGlite) con su flujo completo;
   la de foto de perfil se validó sobre el stack local real de Supabase
   (`supabase start`, Docker), incluso contra la API real de Storage, no solo
@@ -40,7 +43,16 @@ Estado de aplicación:
   caducidad, RLS, grants de columna). `…122000_free_tier_duel_limit` se validó
   sobre PGlite (15 asserts: cupo gratis, `ERRCODE 'PRO01'`, rechazo ajeno no
   gasta cupo, duelo `ACTIVE` sí, corte por día, Pro sin límite, aceptar
-  entrantes no cuenta, resto de validaciones de `request_duel` intactas). Los
+  entrantes no cuenta, resto de validaciones de `request_duel` intactas).
+  `…130000_step_sync_anticheat` se validó sobre PGlite (20 asserts: recorte por
+  `daily_step_cap()`, monotonía, que `source` describa la lectura que gana,
+  `reported_steps` como máximo reclamado, `synced_at` siempre al día, los cuatro
+  bordes de la ventana `hoy+1` / `hoy-8` / `hoy+2` / `hoy-9`, `STP02`, recálculo
+  de racha, lote normal, día fuera de ventana saltado sin tumbar el lote, origen
+  inválido que sí lo tumba y sin escritura a medias, lote de la ventana completa,
+  lote desproporcionado, revocación de `INSERT`/`UPDATE` a `authenticated` a
+  nivel de tabla **y** de columna, `SELECT` y `EXECUTE` intactos, `anon` sin
+  escritura, y el `CHECK` estructural). Los
   dos ficheros de cron (`…090000_…`, `…121000_…`) **no se pueden validar así**
   porque ni PGlite ni el stack local por defecto traen `pg_cron`/`pg_net`
   activos — solo se prueban contra un proyecto Supabase real.
@@ -62,9 +74,13 @@ todo lo que da ventaja lo calcula el servidor.**
 
 El rol `authenticated` (cualquier usuario logueado desde la app) solo puede:
 
-- editar su propio `username`
-- insertar/actualizar su `steps_count` diario
-- llamar a las RPCs de duelos, de clanes y de guerras de clanes
+- editar su propio `username` y su `avatar_url`
+- llamar a las RPCs de duelos, de clanes, de guerras de clanes, de amistades y
+  de pasos (`sync_daily_steps`)
+
+Fíjate en que **escribir pasos ya no está en esa lista**: hasta
+`20260906130000_step_sync_anticheat.sql` el cliente insertaba `steps_count`
+directo, y era la única grieta de este principio. Ver §16.
 
 **No puede** escribir directamente `xp`, `level`, `streak_days`, `is_pro`, los
 marcadores de duelos, el ganador, ni nada de las tablas de clanes
@@ -173,8 +189,10 @@ concede de vuelta solo lo seguro:
   (§14: no es anti-cheat, no da ventaja de juego). `xp`, `level`,
   `streak_days`, `is_pro` son físicamente no escribibles por la app aunque la
   fila sea del usuario.
-- **`step_logs`**: `SELECT` + `INSERT (user_id, date, steps_count)` +
-  `UPDATE (steps_count)`.
+- **`step_logs`**: solo `SELECT`. El `INSERT`/`UPDATE` que tenía el cliente se
+  **revocó** en `20260906130000_step_sync_anticheat.sql`, igual que se hizo con
+  `duels` en cuanto existió `request_duel`. Se escribe con `sync_daily_steps` /
+  `sync_daily_steps_batch`. Ver §16.
 - **`duels`**: solo `SELECT` (el INSERT se concedió en la migración inicial y
   luego se **revocó** en la migración de RPCs, una vez existió `request_duel`).
 - **Tablas de clanes** (`clans`, `clan_members`, `clan_join_requests`,
@@ -658,6 +676,92 @@ invoca sí. Aún sin `supabase db push`.
 
 ---
 
+## 16. Sincronización de pasos y anti-cheat (`20260906130000_step_sync_anticheat.sql`)
+
+El §1 dice «el servidor no confía en el cliente», pero hasta esta migración
+`step_logs.steps_count` era la excepción: el cliente lo escribía directo con
+`GRANT INSERT`/`GRANT UPDATE`, y el único `CHECK` era `>= 0`. Como la clave
+publicable viaja dentro de la app y es pública por diseño, cualquiera podía
+meter 900.000 pasos con un `curl`. Las RLS solo garantizaban que lo hiciera en
+*su* fila. El anti-cheat protegía el premio (`xp`, `level`) pero no el marcador
+que lo reparte.
+
+### Qué cambia
+
+- `authenticated` pasa a tener **solo `SELECT`** sobre `step_logs`.
+- Se escribe con `sync_daily_steps(p_date, p_steps, p_source)` y su versión por
+  lotes `sync_daily_steps_batch(p_days JSONB)`, ambas `SECURITY DEFINER`,
+  `search_path = ''`.
+
+### Las cuatro defensas
+
+| Defensa | Cómo | Qué NO cubre |
+|---|---|---|
+| Tope diario | `daily_step_cap()` = `60000`; el servidor **recorta**, no rechaza | Un tramposo constante justo por debajo del tope |
+| Ventana de fechas | `step_sync_backfill_days()` = `7`, **± 1 día de margen por husos horarios**: `[hoy-8, hoy+1]` en UTC | — |
+| Monotonía | `GREATEST(guardado, nuevo)` por día | Impide corregir a la baja desde la app; hace falta `service_role` |
+| Procedencia | Columna `source` + `reported_steps` | **No es una defensa**: el cliente la declara y puede mentir |
+
+**El filtro de pasos metidos a mano es del cliente, y tiene que serlo.** Los
+metadatos que permiten detectarlos —`recordingMethod` en Health Connect,
+`HKWasUserEntered` en HealthKit— nunca llegan al servidor: aquí solo llega el
+total ya agregado. Ese descarte vive en `src/lib/steps/health-connect.ts`.
+
+Fuera de alcance de la v1: atestación de dispositivo (App Attest / Play
+Integrity), que es lo único que probaría que quien escribe es la app de verdad.
+
+### El margen de husos horarios, y por qué es a los dos lados
+
+`CURRENT_DATE` es UTC y el cliente manda **su** fecha local, así que el día del
+usuario puede ir uno por delante (UTC+14 existe) o uno por detrás — toda
+América, cada madrugada de UTC. Un usuario en Los Ángeles a las 20:00 sincroniza
+cuando en UTC ya es el día siguiente: su día más viejo es `hoy-8` para el
+servidor, no `hoy-7`. De ahí que la ventana sea `[hoy-8, hoy+1]` y no
+`[hoy-7, hoy+1]`.
+
+### El lote: todo o nada, menos para `STP01`
+
+`sync_daily_steps_batch` es **una** transacción: si un día revienta se pierden
+todos los demás. Eso es lo correcto para un origen inválido o un JSON mal
+formado —es un bug del cliente y hay que verlo—, pero no para una fecha fuera de
+ventana, que es divergencia normal entre dos relojes. Esos días **se saltan**;
+cualquier otro error sigue abortando el lote entero.
+
+No es un fallo silencioso: la RPC devuelve **una fila por día guardado**, no por
+día enviado, así que comparar lo enviado con lo devuelto dice exactamente qué se
+descartó. `SupabaseStepsRepository.syncDailySteps` lo documenta del lado del
+cliente.
+
+### Columnas nuevas en `step_logs`
+
+| Columna | Notas |
+|---|---|
+| `source` | `healthkit` / `health-connect` / `pedometer`; `NULL` en filas anteriores. Describe la lectura que **ganó** el `GREATEST`, no la última que llegó |
+| `reported_steps` | El **máximo** que el cliente ha reclamado ese día antes del recorte. Mayor que `steps_count` = chocó con el tope |
+| `synced_at` | Última sincronización, aunque no cambiara nada |
+
+`healthkit` está reservado y hoy no lo escribe nadie: iOS va con el podómetro
+(CoreMotion). El valor existe para que añadir el lector de HealthKit no exija
+otra migración — ver `docs/conteo-de-pasos.md` §9.
+
+Además, un `CHECK (steps_count <= 250000) NOT VALID` estructural como red frente
+a un bug del servidor o un seed mal hecho — no es el límite de juego, ese es
+`daily_step_cap()`, que se puede tocar sin migrar. `NOT VALID` rige para todo lo
+que se escriba a partir de ahora pero no escanea la tabla al aplicar la
+migración: si sobreviviera una fila absurda de cuando el cliente escribía
+directo, un `ADD CONSTRAINT` normal tumbaría el `db push`. Se puede endurecer
+luego con `VALIDATE CONSTRAINT`.
+
+### Señales al cliente
+
+- `STP01` → fecha fuera de la ventana sincronizable.
+- `STP02` → origen de datos no reconocido.
+
+El trigger `step_logs_streak` (§8) sigue funcionando igual: corre `AFTER INSERT
+OR UPDATE OF steps_count`, y la RPC hace exactamente eso.
+
+---
+
 ## Placeholders a revisar
 
 - Ratio pasos → XP (`/10`).
@@ -671,3 +775,7 @@ invoca sí. Aún sin `supabase db push`.
   periodo sin evento) y su frecuencia (`cada hora`) — ver §15.
 - Límite diario de duelos de la versión gratuita (`free_tier_daily_duel_limit()`
   = `1`) y la ventana que lo mide (`día natural del servidor`) — ver §6.
+- Tope diario de pasos (`daily_step_cap()` = `60000`) y ventana de
+  sincronización (`step_sync_backfill_days()` = `7`) — ver §16. El tope recorta
+  en silencio: si se baja, hay que decidir si la app avisa al usuario de que su
+  cifra se recortó (el repositorio ya devuelve `capped`).

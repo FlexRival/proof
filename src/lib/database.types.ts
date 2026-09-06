@@ -61,8 +61,21 @@ export type StepLogRow = {
   user_id: string;
   /** `DATE` de Postgres, en `YYYY-MM-DD`. Es la fecha **local** del usuario. */
   date: string;
+  /** Lo que el servidor guardó, ya recortado por `daily_step_cap()`. */
   steps_count: number;
   created_at: string;
+  /**
+   * De dónde dijo el cliente que venía el dato. `null` en las filas anteriores
+   * a `20260906130000_step_sync_anticheat.sql`. **No es una defensa**: el
+   * cliente lo declara y puede mentir; sirve para auditoría y calidad de dato.
+   */
+  source: 'healthkit' | 'health-connect' | 'pedometer' | null;
+  /**
+   * Lo que el cliente dijo **antes** del recorte. Mayor que `steps_count`
+   * significa que chocó contra el tope diario. `null` en filas antiguas.
+   */
+  reported_steps: number | null;
+  synced_at: string | null;
 };
 
 export type DuelRow = {
@@ -182,7 +195,7 @@ export type FriendshipRow = {
  * propia fila y solo las columnas no sensibles: `rc_app_user_id`,
  * `last_event_id` y `last_event_at` tienen `GRANT` solo a `service_role`, así
  * que no aparecen aquí. `profiles.is_pro` es el cache rápido derivado de esto.
- * Ver `supabase/SCHEMA.md` §16.
+ * Ver `supabase/SCHEMA.md` §15.
  */
 export type SubscriptionRow = {
   user_id: string;
@@ -226,10 +239,16 @@ export type Database = {
       };
       step_logs: {
         Row: StepLogRow;
-        /** `GRANT INSERT (user_id, date, steps_count)`. */
-        Insert: { user_id: string; date: string; steps_count: number };
-        /** `GRANT UPDATE (steps_count)`. */
-        Update: { steps_count?: number };
+        /**
+         * El cliente ya NO escribe esta tabla.
+         * `20260906130000_step_sync_anticheat.sql` revocó los grants de
+         * `INSERT`/`UPDATE` a `authenticated`, porque `steps_count` es el
+         * marcador que decide los duelos y era lo único que la app escribía a
+         * pelo. Se escribe con `sync_daily_steps` / `sync_daily_steps_batch`,
+         * que aplican el tope diario y la ventana de fechas.
+         */
+        Insert: never;
+        Update: never;
         Relationships: [];
       };
       duels: {
@@ -281,6 +300,34 @@ export type Database = {
       // ---- XP y rachas ----
       level_for_xp: { Args: { p_xp: number }; Returns: number };
       daily_step_goal: { Args: Record<never, never>; Returns: number };
+
+      // ---- Pasos (`20260906130000_step_sync_anticheat.sql`) ----
+      /** Tope diario que aplica el servidor antes de guardar. */
+      daily_step_cap: { Args: Record<never, never>; Returns: number };
+      /** Cuántos días hacia atrás se puede sincronizar. */
+      step_sync_backfill_days: { Args: Record<never, never>; Returns: number };
+      sync_daily_steps: {
+        Args: {
+          p_date: string;
+          p_steps: number;
+          /** Sin `null`: la RPC lo rechaza con `STP02`. */
+          p_source: NonNullable<StepLogRow['source']>;
+        };
+        Returns: StepLogRow;
+      };
+      /**
+       * Un array de `{ date, steps, source }`. Devuelve una fila por día
+       * **guardado**, no una por día enviado: los días que caen fuera de la
+       * ventana sincronizable se saltan en silencio en vez de tumbar el lote
+       * entero, y comparar lo enviado con lo devuelto dice cuáles fueron.
+       * Cualquier otro error (origen inválido, JSON mal formado) sí aborta.
+       */
+      sync_daily_steps_batch: {
+        Args: {
+          p_days: { date: string; steps: number; source: NonNullable<StepLogRow['source']> }[];
+        };
+        Returns: StepLogRow[];
+      };
 
       /** Duelos que un usuario gratis puede crear al día (Pro sin límite). */
       free_tier_daily_duel_limit: { Args: Record<never, never>; Returns: number };

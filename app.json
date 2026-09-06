@@ -17,7 +17,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["android.permission.health.READ_STEPS"]
     },
     "web": {
       "output": "static",
@@ -37,6 +38,21 @@
         "expo-image-picker",
         {
           "photosPermission": "ProofIt needs access to your photos so you can set a profile picture."
+        }
+      ],
+      "react-native-health-connect",
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "ProofIt counts your daily steps to level you up and settle your duels."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          }
         }
       ]
     ],

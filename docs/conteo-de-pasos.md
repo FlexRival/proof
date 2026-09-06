@@ -191,12 +191,40 @@ que exige el esquema.
 
 ## 9. Qué falta decidir
 
-- [ ] ¿Librería única (`react-native-health-link`) o una por plataforma?
-- [ ] ¿Cuánto anti-cheat? Decisión de producto + trabajo de servidor de Luis.
-- [ ] ¿Cuándo se hace el development build? Bloquea todo lo demás de pasos.
-- [ ] ¿Qué pasa con quien **no concede** el permiso de salud? ¿Juega con el
-      pedómetro en primer plano, o se queda fuera?
-- [ ] ¿Y en Android 13 o anterior, si no tiene Health Connect instalado?
+Actualizado el 6 de septiembre de 2026, al implementar KAN-50 y KAN-52.
+
+- [x] **¿Librería única o una por plataforma?** → **Una por plataforma.**
+      `react-native-health-connect` (4.1.3) en Android; en iOS, de momento, el
+      podómetro de `expo-sensors`. Se descartó el wrapper único: mete una capa
+      que habría que auditar para saber qué hace con los metadatos de
+      procedencia, que es justo lo que necesitamos ver.
+- [x] **¿Cuánto anti-cheat?** → Tope diario, ventana de fechas y monotonía en
+      el servidor; filtro de pasos introducidos a mano en el cliente. La
+      atestación de dispositivo queda fuera de la v1. Implementado en
+      `20260906130000_step_sync_anticheat.sql`, detalle en `SCHEMA.md` §16.
+- [x] **¿Qué pasa con quien no concede el permiso?** → La capa devuelve un
+      `StepsAccess` explícito (`granted` / `denied` / `undetermined` /
+      `unavailable`) en vez de un array vacío, precisamente porque en iOS un
+      cero y un "no" son indistinguibles. Pintar cada caso es KAN-51.
+- [x] **¿Y en Android 13 o anterior sin Health Connect?** → Se devuelve
+      `unavailable: 'provider-missing'` y la app ofrece instalarlo. **No** se
+      cae al podómetro: en Android `Pedometer.getStepCountAsync` no existe, así
+      que el respaldo daría una app que aparenta funcionar sin contar nada.
+- [ ] **¿Cuándo se hace el development build (KAN-49)?** Sigue abierto y sigue
+      bloqueando: nada de esto se ha ejecutado nunca en un teléfono.
+
+### El hallazgo que cambia el plan de iOS
+
+`Pedometer.getStepCountAsync` (CoreMotion) es **solo iOS** —en Android no
+existe—, pero a cambio devuelve **hasta 7 días de histórico**, justo la ventana
+que acepta el servidor. Es decir: **iOS puede salir en la v1 sin tocar
+HealthKit**, lo que ahorra el entitlement, las reglas de revisión de HealthKit
+y parte del papeleo de privacidad de §7.
+
+Lo que se pierde sin HealthKit: los pasos del Apple Watch y los de otras apps.
+CoreMotion solo cuenta lo que midió ese iPhone, así que quien lleve reloj verá
+menos pasos de los que cree tener. Es una pérdida real de calidad de dato, no
+un detalle — pero es aplazable, y HealthKit no lo es si hay que entregar el 30.
 
 ---
 
