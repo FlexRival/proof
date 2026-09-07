@@ -159,14 +159,20 @@ ProofIt es una app RPG móvil desarrollada con Expo (React Native) donde los pas
   **`const { isPro, status, requirePro } = useSubscription()`**
   (`src/hooks/use-subscription.ts`) — lee `profiles.is_pro`, no toca el SDK;
   `requirePro(action)` corre `action` si es Pro o abre el paywall si no.
-  **La UI de compra (paywall, sección de Ajustes, restaurar) es trabajo aparte de
-  otra persona y no está hecha.** El cableado deja `subscriptionRepository` con
-  `getCurrentOffering()`, `purchase()`, `restore()` para cuando se monte esa UI;
-  tras un `purchase`/`restore` hay que reconciliar y recargar el perfil (patrón
-  en `use-subscription-sync.ts`).
   Módulo nativo → **rompe Expo Go, exige development build** (KAN-49). Claves
   públicas del SDK en `.env.local`: `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` /
   `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY`. Ver `docs/revenuecat.md`.
+- **Paywall (UI de compra):** `src/app/paywall.tsx` compra y restaura de verdad.
+  Los planes salen de la oferta activa de RevenueCat vía `usePaywall`
+  (`src/hooks/use-paywall.ts`) — **la app no formatea ningún precio**, los
+  da la store ya localizados; `src/lib/paywall.ts` solo calcula el ahorro
+  relativo. Sin oferta (sin claves, en web, sin offering configurada) la
+  pantalla dice «no disponible» en vez de enseñar cifras inventadas. Se llega
+  desde Ajustes → «Hazte Pro» y desde el cupo agotado de duelos. El estado Pro
+  que se pinta sigue siendo `profiles.is_pro`, nunca el SDK. **Qué desbloquea
+  Pro sigue por definir (KAN-25):** hoy la única ventaja real —y la única que la
+  pantalla promete— es quitar el cupo diario de duelos. Faltan páginas de
+  términos y privacidad para los enlaces del pie.
 - **Límite de duelos gratis (primera puerta Pro):** `request_duel` limita a los
   usuarios con `is_pro = false` a `free_tier_daily_duel_limit()` duelos creados
   por día (hoy `1`); Pro sin límite. El check vive en la RPC, no en una Edge

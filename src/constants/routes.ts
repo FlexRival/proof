@@ -94,10 +94,10 @@ export const ROUTES: Record<RouteKey, RouteDefinition> = {
    * Paywall de Pro. Tarea con principio y fin, como `newDuel`: se abre encima
    * de donde estabas y se cierra con la `✕`.
    *
-   * **Todavía no la abre nadie.** Falta decidir qué se bloquea detrás de Pro
-   * (KAN-25) para saber desde dónde se ofrece; mientras tanto se llega por
-   * URL (`/paywall`). Tenerla aquí es lo que hace que enlazarla desde
-   * cualquier pantalla sea un cambio de una línea y siga estando tipado.
+   * Dos puertas la abren hoy: agotar el cupo diario de duelos gratis
+   * (`new-duel` la sustituye con `replace`) y «Hazte Pro» en Ajustes, que la
+   * apila con `push`. Cuando KAN-25 decida qué más va detrás de Pro, cada
+   * sitio nuevo que la ofrezca es una línea, y sigue estando tipado.
    */
   paywall: { key: 'paywall', href: '/paywall', label: 'Go Pro', tab: false },
   /**

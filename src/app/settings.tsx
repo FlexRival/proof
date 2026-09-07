@@ -110,7 +110,7 @@ export default function SettingsScreen() {
     return <ThemedView style={styles.screen} />;
   }
 
-  const { username, xp, createdAt, avatarUrl } = profileState.data;
+  const { username, xp, createdAt, avatarUrl, isPro } = profileState.data;
   const { level } = levelProgress(xp);
 
   return (
@@ -175,6 +175,29 @@ export default function SettingsScreen() {
             <SettingRow label={t('settings.dailyStepSummary')}>
               <Toggle value={stepSummary} onChange={setStepSummary} label={t('settings.dailyStepSummary')} />
             </SettingRow>
+          </Section>
+
+          {/*
+            El plan sale de `profiles.is_pro` —lo que decide el servidor—, no
+            del SDK de RevenueCat. Esta fila y el cupo de duelos leen el mismo
+            flag, así que no pueden contradecirse.
+
+            Sin este acceso el paywall solo se alcanzaba al agotar el cupo
+            diario de duelos: nadie podía suscribirse a propósito.
+          */}
+          <Section title={t('settings.subscription')}>
+            <SettingRow label={t('settings.plan')}>
+              <ThemedText type="smallBold" themeColor={isPro ? 'primary' : 'textMuted'}>
+                {isPro ? t('settings.planPro') : t('settings.planFree')}
+              </ThemedText>
+            </SettingRow>
+
+            {isPro ? null : (
+              <SettingRow
+                label={t('settings.goPro')}
+                onPress={() => router.push(ROUTES.paywall.href)}
+              />
+            )}
           </Section>
 
           <Section title={t('settings.account')}>

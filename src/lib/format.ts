@@ -26,19 +26,6 @@ export function formatCompact(value: number): string {
 }
 
 /**
- * Precios del paywall: `9.99` → `$9.99`, `5.8325` → `$5.83`.
- *
- * Moneda fija igual que la locale, y por el mismo motivo. Cuando RevenueCat
- * (KAN-9) dé los productos, cada uno vendrá con su precio ya formateado en la
- * moneda del país — y entonces esto servirá solo para las cifras derivadas.
- */
-const PRICE_FORMAT = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
-
-export function formatPrice(value: number): string {
-  return PRICE_FORMAT.format(value);
-}
-
-/**
  * Mes y año en mayúsculas para "fecha de alta": `2026-03-14T...` → `MAR 2026`.
  * El "JOINED" delante es copy de pantalla, no de este formateador.
  */

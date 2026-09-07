@@ -1,11 +1,14 @@
 # RevenueCat — el lado cliente de la suscripción Pro
 
-**Estado: SDK y cableado integrados (KAN-9). Toda la UI de suscripción —paywall,
-sección de Ajustes, «restaurar compras»— es trabajo aparte de otra persona y
-NO está hecha.** Este ticket deja el SDK inicializado, la sesión de RevenueCat
-atada al usuario y la reconciliación con el servidor funcionando; el contrato
-`subscriptionRepository` expone lo que esa UI necesitará. Fecha: 2026-09-07.
-SDK `react-native-purchases` 10.9.0.
+**Estado: SDK, cableado y UI de compra hechos (KAN-9).** El SDK está
+inicializado, la sesión de RevenueCat atada al usuario, la reconciliación con el
+servidor funcionando, y el paywall (`/paywall`) compra y restaura de verdad
+contra la oferta activa de RevenueCat. Fecha: 2026-09-07. SDK
+`react-native-purchases` 10.9.0.
+
+**Lo que sigue sin decidir es producto, no código:** qué separa Pro de gratis
+más allá del cupo diario de duelos (KAN-25), y las páginas de términos y
+privacidad que las stores exigen enlazar desde la pantalla de pago.
 
 El backend ya estaba hecho antes de este trabajo — tablas `subscriptions` /
 `subscription_events`, `profiles.is_pro` como cache derivado, Edge Functions
@@ -42,13 +45,32 @@ RevenueCat y recalcula `profiles.is_pro` — y **luego** recarga el perfil. El
 | `src/hooks/use-subscription-sync.ts` | Montado en el layout raíz. `configure()` al arrancar, `identify(uuid)` tras el login, `signOut()` al cerrar sesión, reconcile al arrancar y en cada aviso del SDK. |
 | `src/hooks/use-subscription.ts` | **El hook de gating para la UI.** `const { isPro, status, requirePro } = useSubscription()`. Lee `profiles.is_pro` del perfil, no habla con el SDK. Ver §7. |
 | `src/repositories/profile-repository.ts` | Método nuevo `invalidate()` (no-op en la impl Supabase, caduca el caché en `CachedProfileRepository`): lo usa el sync porque el reconcile cambia `is_pro` por fuera del repositorio de perfil. |
+| `src/hooks/use-paywall.ts` | `usePaywall(reloadProfile)`: los planes comprables y las acciones que cambian el entitlement, para **una** pantalla (el paywall). Tras `purchase`/`restore` reconcilia y recarga el perfil que le pasan. No confundir con `use-subscription` (que solo dice si **es** Pro) ni con `use-subscription-sync`, que va en el layout raíz y solo atiende la sesión. |
+| `src/app/paywall.tsx` | La pantalla de pago. Pinta la oferta de la store, deja elegir plan, compra, restaura, y enseña el estado Pro cuando ya hay suscripción. |
+| `src/lib/paywall.ts` | Aritmética de los planes: contra qué plan se mide el ahorro, cuánto ahorra cada uno, cuál viene marcado. Sobre `monthlyPrice` (número), nunca sobre el precio formateado. |
+| `src/app/settings.tsx` | Sección «SUSCRIPCIÓN»: el plan actual leído de `is_pro` y el acceso «Hazte Pro» al paywall. |
 
-**Lo que queda para la otra persona** (la UI): pintar los planes con
-`subscriptionRepository.getCurrentOffering()`, comprar con `.purchase(pkg)` y
-ofrecer `.restore()`. Tras un `'purchased'` o un restore hay que reconciliar y
-recargar el perfil — el patrón exacto está en `syncFromServer()` de
-`use-subscription-sync.ts` (`syncWithServer()` → `profileRepository.invalidate()`
-→ recargar).
+### Cómo se comporta la pantalla
+
+- **Los precios los da la store**, ya formateados en la moneda del país
+  (`priceLabel`, `monthlyPriceLabel`). La app no formatea ni inventa ninguno: si
+  no hay oferta, no se enseña ningún número.
+- **Sin oferta ≠ error.** `getCurrentOffering()` devolviendo `null` (SDK sin
+  claves, bundle web, proyecto sin offering por defecto) se pinta como «las
+  compras no están disponibles», en tono informativo. Un error de red sí sale en
+  rojo y con «Reintentar».
+- **Cancelar la hoja de pago no es un fallo**: vuelve como `'cancelled'` y la
+  pantalla se queda igual, sin mensaje.
+- **Tras comprar se confirma aunque `is_pro` siga en `false`.** El reconcile
+  puede fallar (red) y no se convierte en «no se pudo comprar»: el cobro ya
+  ocurrió y el webhook lo arreglará. Se dice que se está confirmando.
+- **`configure()` se vuelve a llamar al abrir la pantalla.** Los efectos de
+  React corren de hijo a padre, así que el paywall se monta antes de que
+  `useSubscriptionSync` haya configurado el SDK; sin esa llamada (idempotente),
+  abrir el paywall recién arrancada la app diría «no disponible» con las claves
+  puestas.
+- **Restaurar sin nada que restaurar** se dice explícitamente en vez de quedarse
+  callado, que es indistinguible de un fallo.
 
 ---
 
@@ -115,8 +137,14 @@ En la app:
    crear un segundo duelo el mismo día ya no rebota al paywall (`request_duel`
    mira `is_pro` en SQL).
 
-El flujo de compra completo (offerings + `purchasePackage` + hoja de pago
-sandbox + restore) se prueba cuando esté la UI — el contrato ya está listo.
+8. Ajustes → «Hazte Pro» (o agotar el cupo diario de duelos) abre `/paywall`.
+   Con la offering bien configurada salen los planes reales con su precio de la
+   store; comprar con una cuenta de sandbox debe dejar la pantalla en «Ya eres
+   Pro» y `profiles.is_pro` en `true`.
+
+**En web no se puede probar la compra**: el stub `.web.ts` devuelve «no
+disponible» a propósito, así que el paywall en `expo start --web` sirve para ver
+la maqueta y ese estado, no el flujo de pago.
 
 ---
 
