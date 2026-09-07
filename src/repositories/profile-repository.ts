@@ -27,6 +27,14 @@ export type PickedImage = {
   mimeType: string;
 };
 
+/**
+ * Para qué servía el enlace que el usuario acaba de abrir desde su correo.
+ *
+ * `'none'` no es un fallo: la app recibe todos los enlaces que abren su
+ * esquema, y la mayoría no son de autenticación.
+ */
+export type AuthLinkPurpose = 'recovery' | 'none';
+
 export interface ProfileRepository {
   /** Perfil de la sesión actual, o `null` si no hay sesión iniciada. */
   getCurrentProfile(): Promise<Profile | null>;
@@ -54,6 +62,39 @@ export interface ProfileRepository {
 
   /** Cierra la sesión actual. */
   signOut(): Promise<void>;
+
+  /**
+   * Manda al correo un enlace para recuperar la cuenta.
+   *
+   * `redirectTo` es la URL a la que ese enlace devuelve al usuario — en móvil,
+   * un enlace profundo a la propia app. Lo decide quien llama y no el
+   * repositorio porque construirlo depende del esquema y de la plataforma
+   * (`Linking.createURL`), que son cosas de la app, no del backend.
+   *
+   * **No dice si ese email existe**, y es a propósito: responder distinto para
+   * un correo registrado y para uno que no lo está convierte este formulario en
+   * una forma de averiguar quién tiene cuenta.
+   */
+  sendPasswordReset(email: string, redirectTo: string): Promise<void>;
+
+  /**
+   * Cambia la contraseña del usuario de la sesión actual.
+   *
+   * Requiere sesión: o la de siempre, o la que abre el enlace de recuperación
+   * (`resumeSessionFromLink`). Sin ninguna de las dos, falla.
+   */
+  updatePassword(newPassword: string): Promise<void>;
+
+  /**
+   * Abre la sesión que viaja dentro de un enlace de correo de autenticación y
+   * dice para qué era.
+   *
+   * Es lo que convierte «he pinchado el enlace del email» en «estoy dentro y
+   * puedo cambiar la contraseña». Un enlace caducado o ya usado lanza
+   * `RepositoryError` con el motivo, que es un caso corriente y hay que
+   * enseñarlo: estos enlaces expiran en una hora.
+   */
+  resumeSessionFromLink(url: string): Promise<AuthLinkPurpose>;
 
   /**
    * Sube una foto de perfil nueva y actualiza `avatarUrl` en el perfil del

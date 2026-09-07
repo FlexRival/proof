@@ -16,15 +16,32 @@ export type StatTileProps = {
   label: string;
   value: string;
   valueColor?: ThemeColor;
+  /**
+   * Contorno Power en vez de card hundida. Para la cifra que **es** el premio
+   * —el XP de un duelo ganado—, no una más de la rejilla.
+   */
+  highlight?: boolean;
+  /**
+   * Cifra grande. Va con el número de columnas: en una rejilla de tres (el
+   * perfil) la cifra pequeña respira; en una de dos (el resultado de un duelo)
+   * se queda enana.
+   */
+  large?: boolean;
 };
 
-export function StatTile({ label, value, valueColor }: StatTileProps) {
+export function StatTile({
+  label,
+  value,
+  valueColor,
+  highlight = false,
+  large = false,
+}: StatTileProps) {
   return (
-    <Card variant="sunken" style={styles.tile}>
+    <Card variant={highlight ? 'highlight' : 'sunken'} style={styles.tile}>
       <ThemedText type="label" themeColor="textDim">
         {label}
       </ThemedText>
-      <ThemedText type="subheading" themeColor={valueColor}>
+      <ThemedText type={large ? 'subtitle' : 'subheading'} themeColor={valueColor}>
         {value}
       </ThemedText>
     </Card>

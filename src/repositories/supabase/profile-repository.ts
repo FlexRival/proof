@@ -3,11 +3,38 @@ import { decode } from 'base64-arraybuffer';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { RepositoryError } from '@/repositories/errors';
-import type { PickedImage, Profile, ProfileRepository } from '@/repositories/profile-repository';
+import type {
+  AuthLinkPurpose,
+  PickedImage,
+  Profile,
+  ProfileRepository,
+} from '@/repositories/profile-repository';
 
 import type { Database, ProfileRow } from '@/lib/database.types';
 
 const AVATAR_BUCKET = 'avatars';
+
+/**
+ * Los parámetros que Supabase mete en un enlace de correo, vengan donde vengan.
+ *
+ * Van en el **fragmento** (`#access_token=…`) y no en la query, porque el flujo
+ * implícito —el que usa este proyecto: `flowType` no se toca y por defecto es
+ * ese— los devuelve así para que no viajen a ningún servidor. `Linking.parse()`
+ * de Expo solo desglosa la query, así que aquí se parte a mano.
+ *
+ * Se mira también la query porque los enlaces de error a veces llegan por ahí,
+ * y porque en web el navegador puede haber consumido ya el fragmento.
+ */
+function authParamsFrom(url: string): URLSearchParams | null {
+  const fragment = url.split('#')[1];
+  if (fragment) {
+    return new URLSearchParams(fragment);
+  }
+
+  const query = url.split('?')[1];
+
+  return query ? new URLSearchParams(query) : null;
+}
 
 function toProfile(row: ProfileRow): Profile {
   return {
@@ -95,6 +122,60 @@ export class SupabaseProfileRepository implements ProfileRepository {
     if (error) {
       throw new RepositoryError('No se pudo cerrar sesión.', { cause: error });
     }
+  }
+
+  async sendPasswordReset(email: string, redirectTo: string): Promise<void> {
+    const { error } = await this.client.auth.resetPasswordForEmail(email, { redirectTo });
+
+    // Supabase no distingue un email registrado de uno que no lo está, así que
+    // un `error` aquí es un fallo de verdad (red, cuota de correos) y no un
+    // «ese usuario no existe». Se propaga tal cual.
+    if (error) {
+      throw new RepositoryError('No se pudo enviar el correo de recuperación.', { cause: error });
+    }
+  }
+
+  async updatePassword(newPassword: string): Promise<void> {
+    const { error } = await this.client.auth.updateUser({ password: newPassword });
+
+    if (error) {
+      throw new RepositoryError('No se pudo cambiar la contraseña.', { cause: error });
+    }
+  }
+
+  async resumeSessionFromLink(url: string): Promise<AuthLinkPurpose> {
+    const params = authParamsFrom(url);
+    if (!params) {
+      return 'none';
+    }
+
+    // Supabase manda el fallo dentro del propio enlace, no como código HTTP: uno
+    // caducado llega igual de bien que uno válido, solo que con
+    // `error_description` en vez de con tokens. Es el caso más frecuente de
+    // todos —estos correos expiran en una hora— así que tiene que llegar a la
+    // pantalla como un mensaje y no como un silencio.
+    const failure = params.get('error_description') ?? params.get('error');
+    if (failure) {
+      throw new RepositoryError(failure.replace(/\+/g, ' '));
+    }
+
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+
+    if (params.get('type') !== 'recovery' || !accessToken || !refreshToken) {
+      return 'none';
+    }
+
+    const { error } = await this.client.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+
+    if (error) {
+      throw new RepositoryError('Ese enlace ya no sirve. Pide uno nuevo.', { cause: error });
+    }
+
+    return 'recovery';
   }
 
   async updateAvatar(image: PickedImage): Promise<Profile> {

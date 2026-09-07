@@ -51,6 +51,31 @@ export const en = {
     hidePassword: 'Hide password',
     show: 'SHOW',
     hide: 'HIDE',
+    forgotPassword: 'I forgot my password',
+  },
+
+  forgotPassword: {
+    title: 'RECOVER\nYOUR ACCOUNT',
+    subtitle: "Enter your email and we'll send you a link to set a new password.",
+    send: 'Send the link',
+    sending: 'Sending…',
+    // Deliberadamente ambiguo: no confirma ni desmiente que ese email tenga
+    // cuenta. Ver el comentario de `forgot-password.tsx`.
+    sent: 'If %{email} has an account, the link is on its way. It expires in one hour.',
+    checkSpam: 'No email? Check your spam folder.',
+    backToSignIn: 'Back to sign in',
+  },
+
+  resetPassword: {
+    title: 'NEW\nPASSWORD',
+    subtitle: 'Choose the one you will use from now on.',
+    doneSubtitle: 'Done. Your password has been changed.',
+    newPassword: 'New password',
+    save: 'Save password',
+    saving: 'Saving…',
+    continue: 'Go to the app',
+    linkExpired: 'That link has expired or was already used. Ask for a new one.',
+    askAgain: 'Send me another link',
   },
 
   home: {

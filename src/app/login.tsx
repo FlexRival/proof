@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,8 +9,10 @@ import { SegmentedControl, type SegmentedOption } from '@/components/molecules/s
 import { TextField } from '@/components/molecules/text-field';
 import { ThemedText } from '@/components/atoms/themed-text';
 import { ThemedView } from '@/components/atoms/themed-view';
+import { ROUTES } from '@/constants/routes';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTranslation } from '@/hooks/use-translation';
+import { MIN_PASSWORD_LENGTH } from '@/lib/password';
 import { profileRepository, RepositoryError } from '@/repositories';
 
 type Mode = 'signIn' | 'signUp';
@@ -28,17 +31,6 @@ function modeOptions(t: Translate): SegmentedOption<Mode>[] {
     { value: 'signUp', label: t('login.signUp') },
   ];
 }
-
-/**
- * Mínimo que exige Supabase Auth por defecto. Se comprueba también aquí para
- * poder decirlo *antes* de enviar: si solo lo valida el servidor, el usuario
- * rellena el formulario entero para que le rebote.
- *
- * Si el proyecto sube el mínimo en su configuración, este número se queda
- * corto y el servidor seguirá rechazando — su error se sigue enseñando tal
- * cual, así que el formulario no miente, solo deja de adelantarse.
- */
-const MIN_PASSWORD_LENGTH = 6;
 
 /**
  * Puerta de entrada sin sesión. `src/app/_layout.tsx` la muestra en vez de
@@ -158,6 +150,18 @@ export default function LoginScreen() {
           {info ? <Notice tone="info" message={info} /> : null}
 
           <Button label={submitLabel(t, mode, submitting)} onPress={handleSubmit} disabled={!canSubmit} />
+
+          {/*
+            Solo al entrar: a quien está creando una cuenta no se le ofrece
+            recuperar una que todavía no tiene.
+          */}
+          {mode === 'signIn' ? (
+            <Button
+              label={t('login.forgotPassword')}
+              variant="ghost"
+              onPress={() => router.push(ROUTES.forgotPassword.href)}
+            />
+          ) : null}
         </ScrollView>
       </SafeAreaView>
     </ThemedView>

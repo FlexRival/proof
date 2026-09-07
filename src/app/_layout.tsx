@@ -4,6 +4,7 @@ import * as SplashScreen from 'expo-splash-screen';
 
 import { AnimatedSplashOverlay } from '@/components/atoms/animated-icon';
 import { FONT_ASSETS } from '@/constants/theme';
+import { useAuthLink } from '@/hooks/use-auth-link';
 import { useProfile } from '@/hooks/use-profile';
 
 SplashScreen.preventAutoHideAsync();
@@ -27,6 +28,10 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(FONT_ASSETS);
   const { state: profileState } = useProfile();
+  // Atiende el enlace del correo de recuperación. Va aquí y no en el login
+  // porque el enlace puede llegar con la app cerrada, y entonces es la URL que
+  // la arranca: para cuando el login se monte, ya habría pasado.
+  useAuthLink();
 
   // Mismo truco que con las fuentes: mientras no sepamos si hay sesión, no
   // pintamos nada y el splash nativo se queda cubriendo — así no hay un
@@ -54,7 +59,7 @@ export default function RootLayout() {
             devuelve exactamente a donde estabas.
           */}
           <Stack.Screen name="level-up" options={{ presentation: 'modal' }} />
-          <Stack.Screen name="victory" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="duel-result" options={{ presentation: 'modal' }} />
           {/*
             Crear un duelo también es modal: es una tarea con principio y fin
             que se abre encima de donde estabas y te devuelve ahí al cerrarse.
@@ -81,7 +86,17 @@ export default function RootLayout() {
 
         <Stack.Protected guard={!isSignedIn}>
           <Stack.Screen name="login" />
+          <Stack.Screen name="forgot-password" />
         </Stack.Protected>
+
+        {/*
+          Fuera de los dos guards a propósito. Se llega desde el enlace del
+          correo, que abre sesión justo antes de navegar aquí: si la pantalla
+          viviera dentro del guard de "con sesión", habría un render en el que
+          la ruta todavía no existe y la navegación se perdería. Fuera, existe
+          siempre y da igual el orden.
+        */}
+        <Stack.Screen name="reset-password" />
       </Stack>
     </ThemeProvider>
   );

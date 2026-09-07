@@ -56,6 +56,23 @@ export class CachedProfileRepository implements ProfileRepository {
     return this.inner.signOut();
   }
 
+  sendPasswordReset(email: string, redirectTo: string): Promise<void> {
+    return this.inner.sendPasswordReset(email, redirectTo);
+  }
+
+  updatePassword(newPassword: string): Promise<void> {
+    return this.inner.updatePassword(newPassword);
+  }
+
+  /**
+   * Sin invalidar a mano: abrir la sesión del enlace dispara un cambio de
+   * sesión, y de eso ya se encarga la suscripción del constructor. Hacerlo aquí
+   * además sería inofensivo, pero dejaría la misma regla escrita en dos sitios.
+   */
+  resumeSessionFromLink(url: string): ReturnType<ProfileRepository['resumeSessionFromLink']> {
+    return this.inner.resumeSessionFromLink(url);
+  }
+
   /**
    * Esta sí toca el caché explícitamente: a diferencia de las de arriba, no
    * dispara `onAuthStateChange` (no cambia la sesión), así que sin esto

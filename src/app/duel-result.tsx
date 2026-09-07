@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/atoms/themed-text';
 import { ThemedView } from '@/components/atoms/themed-view';
 import { LevelUpBadge } from '@/components/molecules/level-up-badge';
 import { Notice } from '@/components/molecules/notice';
+import { StatTile } from '@/components/molecules/stat-tile';
 import { XpBar } from '@/components/molecules/xp-bar';
 import { DuelShareCard } from '@/components/organisms/duel-share-card';
 import { ROUTES } from '@/constants/routes';
@@ -78,16 +79,18 @@ export default function DuelResultScreen() {
           <DuelShareCard ref={cardRef} result={result} username={profile.username} />
 
           <View style={styles.stats}>
-            <ResultTile
+            <StatTile
               label={t('duelResult.finalSteps')}
               value={formatCount(result.duel.yourSteps)}
               valueColor="steps"
+              large
             />
-            <ResultTile
+            <StatTile
               label={t('duelResult.xpEarned')}
               value={xpEarned > 0 ? `+${formatCount(xpEarned)}` : '0'}
               valueColor="xp"
               highlight={xpEarned > 0}
+              large
             />
           </View>
 
@@ -133,27 +136,6 @@ function dismiss() {
   }
 
   router.replace(ROUTES.home.href);
-}
-
-type ResultTileProps = {
-  label: string;
-  value: string;
-  valueColor?: ThemeColor;
-  /** La card de XP va con contorno Power solo si de verdad se ganó algo. */
-  highlight?: boolean;
-};
-
-function ResultTile({ label, value, valueColor, highlight = false }: ResultTileProps) {
-  return (
-    <Card variant={highlight ? 'highlight' : 'sunken'} style={styles.tile}>
-      <ThemedText type="label" themeColor="textDim">
-        {label}
-      </ThemedText>
-      <ThemedText type="subtitle" themeColor={valueColor}>
-        {value}
-      </ThemedText>
-    </Card>
-  );
 }
 
 const styles = StyleSheet.create({

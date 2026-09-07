@@ -24,7 +24,9 @@ export type RouteKey =
   | 'findFriends'
   | 'friendProfile'
   | 'paywall'
-  | 'login';
+  | 'login'
+  | 'forgotPassword'
+  | 'resetPassword';
 
 export type RouteDefinition = {
   key: RouteKey;
@@ -103,6 +105,31 @@ export const ROUTES: Record<RouteKey, RouteDefinition> = {
    * la muestra u oculta con `Stack.Protected` según haya sesión o no.
    */
   login: { key: 'login', href: '/login', label: 'Sign in', tab: false },
+  /**
+   * Recuperar la cuenta. Se abre desde el login y solo tiene sentido sin
+   * sesión, así que vive en la misma mitad del árbol que él.
+   */
+  forgotPassword: {
+    key: 'forgotPassword',
+    href: '/forgot-password',
+    label: 'Forgot password',
+    tab: false,
+  },
+  /**
+   * El final de la recuperación: poner la contraseña nueva.
+   *
+   * **No la abre ningún botón de la app**: se llega desde el enlace del correo,
+   * que `useAuthLink` atiende. Y es la única ruta que no está detrás de ningún
+   * guard —ni el de con sesión ni el de sin ella— porque se navega a ella justo
+   * en el instante en que la sesión de recuperación se acaba de abrir, cuando el
+   * guard todavía puede ir un render por detrás.
+   */
+  resetPassword: {
+    key: 'resetPassword',
+    href: '/reset-password',
+    label: 'New password',
+    tab: false,
+  },
 };
 
 /** Solo las rutas de la barra de navegación, en el orden en que se pintan. */

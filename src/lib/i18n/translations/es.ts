@@ -51,6 +51,29 @@ export const es: Translations = {
     hidePassword: 'Ocultar contraseña',
     show: 'VER',
     hide: 'OCULTAR',
+    forgotPassword: 'He olvidado mi contraseña',
+  },
+
+  forgotPassword: {
+    title: 'RECUPERA\nTU CUENTA',
+    subtitle: 'Escribe tu email y te mandamos un enlace para poner otra contraseña.',
+    send: 'Mandar el enlace',
+    sending: 'Enviando…',
+    sent: 'Si %{email} tiene cuenta, el enlace va de camino. Caduca en una hora.',
+    checkSpam: '¿No te llega? Mira en la carpeta de spam.',
+    backToSignIn: 'Volver a entrar',
+  },
+
+  resetPassword: {
+    title: 'CONTRASEÑA\nNUEVA',
+    subtitle: 'Elige la que vas a usar a partir de ahora.',
+    doneSubtitle: 'Listo. Tu contraseña ya está cambiada.',
+    newPassword: 'Contraseña nueva',
+    save: 'Guardar contraseña',
+    saving: 'Guardando…',
+    continue: 'Ir a la app',
+    linkExpired: 'Ese enlace ha caducado o ya se usó. Pide uno nuevo.',
+    askAgain: 'Mándame otro enlace',
   },
 
   home: {
