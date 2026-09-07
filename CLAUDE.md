@@ -155,11 +155,15 @@ ProofIt es una app RPG móvil desarrollada con Expo (React Native) donde los pas
   `Purchases.logIn(uuid)` tras el login y reconcilia con el servidor al arrancar
   y en cada aviso del SDK. El estado Pro que mira la app sigue siendo
   `profiles.is_pro`, nunca el SDK.
-  **Toda la UI de suscripción (paywall, sección de Ajustes, restaurar compras) es
-  trabajo aparte de otra persona y no está hecha.** Este ticket deja solo el
-  cableado: `subscriptionRepository` expone `getCurrentOffering()`, `purchase()`,
-  `restore()` para cuando se monte esa UI; tras un `purchase`/`restore` hay que
-  reconciliar y recargar el perfil (patrón en `use-subscription-sync.ts`).
+  Para bloquear/desbloquear una función Pro en la UI:
+  **`const { isPro, status, requirePro } = useSubscription()`**
+  (`src/hooks/use-subscription.ts`) — lee `profiles.is_pro`, no toca el SDK;
+  `requirePro(action)` corre `action` si es Pro o abre el paywall si no.
+  **La UI de compra (paywall, sección de Ajustes, restaurar) es trabajo aparte de
+  otra persona y no está hecha.** El cableado deja `subscriptionRepository` con
+  `getCurrentOffering()`, `purchase()`, `restore()` para cuando se monte esa UI;
+  tras un `purchase`/`restore` hay que reconciliar y recargar el perfil (patrón
+  en `use-subscription-sync.ts`).
   Módulo nativo → **rompe Expo Go, exige development build** (KAN-49). Claves
   públicas del SDK en `.env.local`: `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` /
   `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY`. Ver `docs/revenuecat.md`.

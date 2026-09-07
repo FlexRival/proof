@@ -40,6 +40,7 @@ RevenueCat y recalcula `profiles.is_pro` — y **luego** recarga el perfil. El
 | `src/repositories/supabase/subscription-repository.ts` | `SupabaseSubscriptionGateway`: la llamada a `revenuecat-reconcile`. Se inyecta en el repo de RevenueCat como `SubscriptionServerGateway` para no cruzar la frontera del patrón repositorio. |
 | `src/repositories/index.ts` | `subscriptionRepository` — compone las dos piezas. |
 | `src/hooks/use-subscription-sync.ts` | Montado en el layout raíz. `configure()` al arrancar, `identify(uuid)` tras el login, `signOut()` al cerrar sesión, reconcile al arrancar y en cada aviso del SDK. |
+| `src/hooks/use-subscription.ts` | **El hook de gating para la UI.** `const { isPro, status, requirePro } = useSubscription()`. Lee `profiles.is_pro` del perfil, no habla con el SDK. Ver §7. |
 | `src/repositories/profile-repository.ts` | Método nuevo `invalidate()` (no-op en la impl Supabase, caduca el caché en `CachedProfileRepository`): lo usa el sync porque el reconcile cambia `is_pro` por fuera del repositorio de perfil. |
 
 **Lo que queda para la otra persona** (la UI): pintar los planes con
@@ -119,13 +120,48 @@ sandbox + restore) se prueba cuando esté la UI — el contrato ya está listo.
 
 ---
 
-## 7. Límite conocido
+## 7. Gating de funciones Pro en la UI — `useSubscription()`
 
-`useProfile` no es estado global: cada pantalla tiene su instancia y no
-comparten. Cuando la UI de compra dispare un reconcile, solo se recarga la
-instancia de perfil de quien montó `useSubscriptionSync` (el layout raíz) y la
-de quien disparó la acción; otras pantallas ya montadas pueden seguir enseñando
-«Free» hasta remontarse o hasta un cambio de sesión. **No afecta al gating** —
-ese vive en el servidor — solo a lo que se pinta. Si molesta, la solución es
-mover el perfil a un store global (como el idioma en `src/lib/i18n/`), no
-parchear cada pantalla.
+El hook para bloquear/desbloquear una función Pro en una línea. Lee
+`profiles.is_pro` del perfil; no toca el SDK.
+
+```tsx
+import { useSubscription } from '@/hooks/use-subscription';
+
+// Habilitar / deshabilitar un control:
+const { isPro } = useSubscription();
+<Button label="Export" disabled={!isPro} onPress={exportData} />
+
+// Puerta sobre una acción — corre la función si es Pro, si no abre el paywall:
+const { requirePro } = useSubscription();
+<Button label="Export" onPress={() => requirePro(exportData)} />
+
+// Pantalla entera solo-Pro:
+const { status, isPro } = useSubscription();
+if (status === 'loading') return <Splash />;
+if (!isPro) return <Redirect href={ROUTES.paywall.href} />;
+```
+
+- `isPro: boolean` — `false` mientras el perfil carga, a propósito: una función
+  Pro nunca debe parpadear desbloqueada.
+- `status: 'loading' | 'free' | 'pro'` — cuando hace falta distinguir «cargando»
+  de «gratis».
+- `requirePro(action?)` — corre `action` y devuelve `true` si es Pro; si no,
+  hace `router.push` al paywall y devuelve `false`.
+
+El gate de verdad de cada función Pro sigue viviendo en el servidor (p. ej.
+`request_duel` mira `is_pro` en SQL). Este hook es solo la capa de UI: qué se
+enseña y a dónde se manda a quien no paga.
+
+---
+
+## 8. Límite conocido
+
+`useProfile` no es estado global: cada pantalla tiene su instancia (también la
+que hay dentro de `useSubscription`) y no comparten. Cuando la UI de compra
+dispare un reconcile, solo se recarga la instancia de perfil de quien montó
+`useSubscriptionSync` (el layout raíz) y la de quien disparó la acción; otras
+pantallas ya montadas pueden seguir enseñando «Free» hasta remontarse o hasta un
+cambio de sesión. **No afecta al gating de servidor** — solo a lo que se pinta.
+Si molesta, la solución es mover el perfil a un store global (como el idioma en
+`src/lib/i18n/`), no parchear cada pantalla.
