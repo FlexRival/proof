@@ -6,6 +6,7 @@ import { AnimatedSplashOverlay } from '@/components/atoms/animated-icon';
 import { FONT_ASSETS } from '@/constants/theme';
 import { useAuthLink } from '@/hooks/use-auth-link';
 import { useProfile } from '@/hooks/use-profile';
+import { useSubscriptionSync } from '@/hooks/use-subscription-sync';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -27,11 +28,15 @@ SplashScreen.preventAutoHideAsync();
  */
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(FONT_ASSETS);
-  const { state: profileState } = useProfile();
+  const { state: profileState, reload: reloadProfile } = useProfile();
+
   // Atiende el enlace del correo de recuperación. Va aquí y no en el login
   // porque el enlace puede llegar con la app cerrada, y entonces es la URL que
   // la arranca: para cuando el login se monte, ya habría pasado.
   useAuthLink();
+
+  // Mantiene el SDK de RevenueCat al día con la sesión y con `profiles.is_pro`.
+  useSubscriptionSync(profileState, reloadProfile);
 
   // Mismo truco que con las fuentes: mientras no sepamos si hay sesión, no
   // pintamos nada y el splash nativo se queda cubriendo — así no hay un

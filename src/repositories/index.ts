@@ -16,11 +16,14 @@ import { CachedProfileRepository } from '@/repositories/cached-profile-repositor
 import type { DuelRepository } from '@/repositories/duel-repository';
 import type { FriendshipRepository } from '@/repositories/friendship-repository';
 import type { ProfileRepository } from '@/repositories/profile-repository';
+import { RevenueCatSubscriptionRepository } from '@/repositories/revenuecat/subscription-repository';
 import type { StepsRepository } from '@/repositories/steps-repository';
+import type { SubscriptionRepository } from '@/repositories/subscription-repository';
 import { SupabaseDuelRepository } from '@/repositories/supabase/duel-repository';
 import { SupabaseFriendshipRepository } from '@/repositories/supabase/friendship-repository';
 import { SupabaseProfileRepository } from '@/repositories/supabase/profile-repository';
 import { SupabaseStepsRepository } from '@/repositories/supabase/steps-repository';
+import { SupabaseSubscriptionGateway } from '@/repositories/supabase/subscription-repository';
 
 export type { PickedImage, Profile, ProfileRepository } from '@/repositories/profile-repository';
 export type {
@@ -41,6 +44,12 @@ export type {
 export { DEFAULT_DUEL_DAYS, DuelLimitReachedError } from '@/repositories/duel-repository';
 export type { StepSyncOutcome, StepsRepository } from '@/repositories/steps-repository';
 export { SYNC_WINDOW_DAYS } from '@/repositories/steps-repository';
+export type {
+  PurchaseOutcome,
+  SubscriptionOffering,
+  SubscriptionPackage,
+  SubscriptionRepository,
+} from '@/repositories/subscription-repository';
 export { RepositoryError } from '@/repositories/errors';
 
 const profiles = new CachedProfileRepository(new SupabaseProfileRepository(supabase));
@@ -73,3 +82,15 @@ export const stepsRepository: StepsRepository = new SupabaseStepsRepository(supa
  * parece parado, que es justo lo contrario de lo que vende el producto.
  */
 export const duelRepository: DuelRepository = new SupabaseDuelRepository(supabase);
+
+/**
+ * Suscripción Pro. Dos backends detrás de un contrato: RevenueCat para comprar
+ * y restaurar (SDK nativo, aislado en `revenuecat/`), y Supabase para la verdad
+ * del entitlement — la Edge Function `revenuecat-reconcile`, inyectada como
+ * `SubscriptionServerGateway`. Sin caché: es sobre todo escritura, y sus
+ * lecturas tienen que reflejar la store en el momento. Ver `supabase/SCHEMA.md`
+ * §15.
+ */
+export const subscriptionRepository: SubscriptionRepository = new RevenueCatSubscriptionRepository(
+  new SupabaseSubscriptionGateway(supabase),
+);

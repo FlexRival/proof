@@ -672,6 +672,17 @@ disfruta hasta el fin del periodo pagado.
   nunca un parámetro. Consulta `GET /v1/subscribers/{id}` con
   `REVENUECAT_SECRET_API_KEY` y llama a `reconcile_subscription`.
 
+### Lado cliente (KAN-9, implementado)
+
+El SDK `react-native-purchases` está integrado detrás del patrón repositorio
+(`subscriptionRepository`). `src/hooks/use-subscription-sync.ts` hace
+`Purchases.logIn(uuid)` tras el login e invoca `revenuecat-reconcile` al
+arrancar, tras comprar/restaurar y en cada aviso del SDK. La app solo mira
+`profiles.is_pro`, nunca el SDK. La pantalla del paywall sigue siendo el
+placeholder de la maqueta (la rehace otra persona) — cuando se cablee, consume
+`subscriptionRepository.getCurrentOffering()` / `.purchase()`. Detalle, claves y
+cómo probar: `docs/revenuecat.md`.
+
 ### `rc_app_user_id` === uuid de Supabase
 
 La app llama a `Purchases.logIn(session.user.id)` tras el login, así que el App

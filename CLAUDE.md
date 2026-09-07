@@ -40,6 +40,11 @@ ProofIt es una app RPG móvil desarrollada con Expo (React Native) donde los pas
   tokens semánticos, huecos pendientes). Contraparte legible de
   `src/constants/colors.ts`. Léela antes de escribir cualquier color en un
   componente; la skill `design-system` lo hace cumplir.
+  **`docs/revenuecat.md`** — el lado cliente de la suscripción Pro: dónde ocurre
+  la compra (store, vía SDK) vs dónde vive la verdad (`profiles.is_pro` en
+  Supabase), las claves de env, el flujo `logIn` → compra → `revenuecat-reconcile`
+  → recarga, y por qué el paywall va detrás del login. Léela antes de tocar
+  `src/repositories/revenuecat/` o el paywall.
 - `.claude/skills/`: Skills de desarrollo y seguridad (anti-leaks, UI, Supabase,
   sistema de diseño, patrón repositorio).
 
@@ -140,6 +145,24 @@ ProofIt es una app RPG móvil desarrollada con Expo (React Native) donde los pas
   de datos no depende de ello. Ver `supabase/SCHEMA.md` §15. Requiere dar de
   alta a mano `REVENUECAT_WEBHOOK_AUTH` y `REVENUECAT_SECRET_API_KEY`
   (`supabase secrets set`).
+- **SDK cliente de RevenueCat (KAN-9):** `react-native-purchases` integrado
+  detrás del patrón repositorio. `subscriptionRepository` (contrato en
+  `src/repositories/subscription-repository.ts`) tiene dos backends: RevenueCat
+  para comprar/restaurar/ofertas (SDK nativo aislado en
+  `src/repositories/revenuecat/`, con stub `.web.ts`) y Supabase para la verdad
+  (`revenuecat-reconcile`, inyectado como `SubscriptionServerGateway`).
+  `src/hooks/use-subscription-sync.ts` (montado en el layout raíz) hace
+  `Purchases.logIn(uuid)` tras el login y reconcilia con el servidor al arrancar
+  y en cada aviso del SDK. El estado Pro que mira la app sigue siendo
+  `profiles.is_pro`, nunca el SDK.
+  **Toda la UI de suscripción (paywall, sección de Ajustes, restaurar compras) es
+  trabajo aparte de otra persona y no está hecha.** Este ticket deja solo el
+  cableado: `subscriptionRepository` expone `getCurrentOffering()`, `purchase()`,
+  `restore()` para cuando se monte esa UI; tras un `purchase`/`restore` hay que
+  reconciliar y recargar el perfil (patrón en `use-subscription-sync.ts`).
+  Módulo nativo → **rompe Expo Go, exige development build** (KAN-49). Claves
+  públicas del SDK en `.env.local`: `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` /
+  `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY`. Ver `docs/revenuecat.md`.
 - **Límite de duelos gratis (primera puerta Pro):** `request_duel` limita a los
   usuarios con `is_pro = false` a `free_tier_daily_duel_limit()` duelos creados
   por día (hoy `1`); Pro sin límite. El check vive en la RPC, no en una Edge
