@@ -97,6 +97,15 @@ export interface ProfileRepository {
   resumeSessionFromLink(url: string): Promise<AuthLinkPurpose>;
 
   /**
+   * Marca como caducado cualquier perfil cacheado, para que la siguiente lectura
+   * vuelva a pedirlo al backend. Úsalo cuando algo externo cambió el perfil en
+   * el servidor sin pasar por esta interfaz — por ejemplo, la Edge Function
+   * `revenuecat-reconcile` moviendo `is_pro` tras una compra. Sin caché por
+   * medio es un no-op.
+   */
+  invalidate(): void;
+
+  /**
    * Sube una foto de perfil nueva y actualiza `avatarUrl` en el perfil del
    * usuario de la sesión actual. Devuelve el perfil ya actualizado.
    */

@@ -178,6 +178,9 @@ export class SupabaseProfileRepository implements ProfileRepository {
     return 'recovery';
   }
 
+  /** No-op: esta implementación no cachea nada. El caché vive en el decorador. */
+  invalidate(): void {}
+
   async updateAvatar(image: PickedImage): Promise<Profile> {
     const { data: userData, error: userError } = await this.client.auth.getUser();
     if (userError || !userData.user) {

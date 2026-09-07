@@ -73,6 +73,11 @@ export class CachedProfileRepository implements ProfileRepository {
     return this.inner.resumeSessionFromLink(url);
   }
 
+  /** Caduca el perfil cacheado; la próxima lectura vuelve a pedirlo al backend. */
+  invalidate(): void {
+    this.cache.invalidate();
+  }
+
   /**
    * Esta sí toca el caché explícitamente: a diferencia de las de arriba, no
    * dispara `onAuthStateChange` (no cambia la sesión), así que sin esto
