@@ -46,9 +46,23 @@ ProofIt es una app RPG móvil desarrollada con Expo (React Native) donde los pas
 ## Notas de implementación (estado actual)
 - **XP:** solo se gana al ganar un duelo (`floor(pasos_ganador / 10)`), no por
   pasos diarios. Ver `supabase/SCHEMA.md`.
-- **Pasos:** sin implementar y sin librería elegida. La captura de pasos
-  necesita módulos nativos, así que **rompe Expo Go** y exige un development
-  build. Ver `docs/conteo-de-pasos.md`.
+- **Pasos:** implementados (KAN-50). `src/lib/steps/` **lee** del teléfono
+  (`expo-sensors`/CoreMotion en iOS, `react-native-health-connect` en Android)
+  y `stepsRepository` **escribe** en el servidor por `sync_daily_steps_batch`;
+  el hook `useSteps` los une y es lo que pinta la pantalla principal. La cifra
+  que se enseña es siempre **la que guardó el servidor**, no la del móvil: el
+  servidor recorta por `daily_step_cap()`. HealthKit sigue sin usarse (el
+  podómetro ya cubre los 7 días que acepta el servidor). Todo esto son módulos
+  nativos, así que **rompe Expo Go** y exige un development build (KAN-49).
+  Ver `docs/conteo-de-pasos.md`.
+- **Duelos y compartir:** el ciclo completo está conectado (KAN-32, KAN-31,
+  KAN-34/35). `duelRepository` envuelve `request_duel` / `respond_to_duel` /
+  `sync_duel_steps` / `resolve_duel`; `useDuels` cierra solo los duelos
+  vencidos al abrir la app sin esperar al cron. La pantalla `/duel-result`
+  enseña victoria **y derrota**, y su lámina 4:5 (`DuelShareCard`) es la vista
+  que `react-native-view-shot` captura a 1080×1350 para compartir con
+  `expo-sharing`. El cupo de duelos gratis llega como
+  `DuelLimitReachedError` y abre el paywall, no un toast de error.
 - **Sin clases de personaje.** Se descartaron: el esquema ya eliminó el enum
   `user_class` y la columna `avatar_class`, y los tokens de color de clase se
   quitaron del sistema de diseño.

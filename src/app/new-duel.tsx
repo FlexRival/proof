@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -11,11 +11,13 @@ import { ThemedText } from '@/components/atoms/themed-text';
 import { ThemedView } from '@/components/atoms/themed-view';
 import { ROUTES } from '@/constants/routes';
 import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { useDuels } from '@/hooks/use-duels';
 import { useFriendships, type FriendshipsState } from '@/hooks/use-friendships';
 import { useProfile } from '@/hooks/use-profile';
 import { useTheme } from '@/hooks/use-theme';
+import { useTranslation } from '@/hooks/use-translation';
 import { levelProgress } from '@/lib/xp';
-import type { Friend, Profile } from '@/repositories';
+import { DuelLimitReachedError, type Friend, type Profile } from '@/repositories';
 
 /**
  * Crear un duelo.
@@ -30,9 +32,12 @@ import type { Friend, Profile } from '@/repositories';
  * «Challenge» de la lista de amigos); como esa lista viaja por red, la
  * preselección se resuelve en cuanto llega, no en el primer render.
  *
- * **No crea nada todavía.** Falta el `duel-repository.ts` que envuelva
- * `request_duel` (que sí existe, `supabase/SCHEMA.md` §6), así que «START
- * DUEL» cierra el asistente. Es KAN-32 quien conecta esto a Supabase.
+ * **Crea el duelo de verdad** desde KAN-32: «START DUEL» llama a `request_duel`
+ * (`supabase/SCHEMA.md` §6). Si el usuario es gratuito y ya gastó su cupo del
+ * día, esa llamada no falla con un error cualquiera sino con
+ * `DuelLimitReachedError`, y entonces el asistente abre el paywall en vez de
+ * enseñar un mensaje rojo: es la primera puerta de pago del producto, y un
+ * error de red y un límite de plan piden cosas distintas del usuario.
  */
 export default function NewDuelScreen() {
   const { opponent: presetUsername } = useLocalSearchParams<{ opponent?: string }>();
@@ -52,6 +57,12 @@ export default function NewDuelScreen() {
 
   const { state: profileState } = useProfile();
   const { state: friendsState } = useFriendships();
+  const { request } = useDuels();
+  const { t } = useTranslation();
+
+  /** `null` mientras no haya fallado nada; si falla, el texto que se enseña. */
+  const [failure, setFailure] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const preset =
     presetUsername && friendsState.status === 'ready'
@@ -69,6 +80,34 @@ export default function NewDuelScreen() {
 
     setChosenStep(step === 3 ? 2 : 1);
   }
+
+  /**
+   * Crea el duelo y cierra el asistente.
+   *
+   * El cupo agotado **no es un error**: se sustituye el asistente por el
+   * paywall con `replace`, no con `push`, para que volver atrás desde el
+   * paywall no devuelva a un asistente cuyo botón vuelve a estar bloqueado.
+   */
+  const startDuel = useCallback(async () => {
+    if (!opponent) return;
+
+    setCreating(true);
+    setFailure(null);
+
+    try {
+      await request(opponent.userId, duration);
+      dismiss();
+    } catch (error) {
+      if (error instanceof DuelLimitReachedError) {
+        router.replace(ROUTES.paywall.href);
+        return;
+      }
+
+      setFailure(error instanceof Error ? error.message : t('common.somethingWentWrong'));
+    } finally {
+      setCreating(false);
+    }
+  }, [duration, opponent, request, t]);
 
   return (
     <ThemedView style={styles.screen}>
@@ -132,7 +171,16 @@ export default function NewDuelScreen() {
               </>
             ) : null}
 
-            {step === 3 ? <Button label="Start duel" onPress={dismiss} /> : null}
+            {step === 3 ? (
+              <>
+                {failure ? <Notice message={failure} tone="rival" /> : null}
+                <Button
+                  label={creating ? 'Starting…' : 'Start duel'}
+                  disabled={creating}
+                  onPress={() => void startDuel()}
+                />
+              </>
+            ) : null}
           </View>
         </View>
       </SafeAreaView>

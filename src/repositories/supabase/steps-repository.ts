@@ -1,24 +1,15 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import { RepositoryError } from '@/repositories/errors';
-import type { StepSyncOutcome, StepsRepository } from '@/repositories/steps-repository';
+import {
+  SYNC_WINDOW_DAYS,
+  type StepSyncOutcome,
+  type StepsRepository,
+} from '@/repositories/steps-repository';
 
 import type { Database, StepLogRow } from '@/lib/database.types';
 import { daysAgoKey, todayKey } from '@/lib/steps/local-date';
 import type { DailySteps } from '@/lib/steps/types';
-
-/**
- * Espejo de `step_sync_backfill_days()` en
- * `20260906130000_step_sync_anticheat.sql`. Se duplica a propósito: no tiene
- * sentido gastar una petición en días que el servidor va a descartar.
- *
- * Si los dos valores se desincronizan no se rompe nada: el servidor manda, y su
- * ventana lleva un día de margen a cada lado (`± 1` por husos horarios), así que
- * esta ventana local siempre cabe dentro de la suya. Un valor de más aquí solo
- * hace que el servidor se salte esos días; uno de menos desaprovecha histórico.
- * Aun así, conviene cambiarlos a la vez.
- */
-const BACKFILL_DAYS = 7;
 
 /**
  * Se filtra con fechas **locales** —las mismas que se van a enviar— y sin
@@ -26,7 +17,7 @@ const BACKFILL_DAYS = 7;
  * devuelve esa fecha por sí solo.
  */
 function isWithinSyncWindow(date: string): boolean {
-  return date >= daysAgoKey(BACKFILL_DAYS) && date <= todayKey();
+  return date >= daysAgoKey(SYNC_WINDOW_DAYS) && date <= todayKey();
 }
 
 function toOutcome(row: StepLogRow): StepSyncOutcome {
@@ -84,5 +75,15 @@ export class SupabaseStepsRepository implements StepsRepository {
     }
 
     return data.map(toOutcome);
+  }
+
+  async getDailyStepGoal(): Promise<number> {
+    const { data, error } = await this.client.rpc('daily_step_goal');
+
+    if (error) {
+      throw new RepositoryError('No se pudo leer la meta diaria de pasos.', { cause: error });
+    }
+
+    return data;
   }
 }

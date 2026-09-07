@@ -19,7 +19,7 @@ export type RouteKey =
   | 'profile'
   | 'settings'
   | 'levelUp'
-  | 'victory'
+  | 'duelResult'
   | 'newDuel'
   | 'findFriends'
   | 'friendProfile'
@@ -53,12 +53,17 @@ export const ROUTES: Record<RouteKey, RouteDefinition> = {
    */
   levelUp: { key: 'levelUp', href: '/level-up', label: 'Level up', tab: false },
   /**
-   * La otra celebración: el resultado de un duelo ganado. Mismo trato que
-   * `levelUp` — se abre con el resultado en la URL
-   * (`/victory?opponent=@alexruiz&steps=8742&days=3`) y se cierra volviendo
-   * atrás. El `href` de aquí es la ruta pelada; quien la abre pone lo demás.
+   * Cómo acabó un duelo: victoria, derrota o empate. Mismo trato que `levelUp`
+   * — se abre con el id del duelo en la URL (`/duel-result?duel=<uuid>`) y se
+   * cierra volviendo atrás. El `href` de aquí es la ruta pelada; quien la abre
+   * pone el parámetro.
+   *
+   * Antes era `/victory` y llevaba el resultado entero en la URL, porque no
+   * había ningún duelo real que consultar. Desde KAN-32 lo hay, así que la
+   * pantalla lo carga por id y el nombre dejó de mentir: la derrota también
+   * tiene pantalla.
    */
-  victory: { key: 'victory', href: '/victory', label: 'Victory', tab: false },
+  duelResult: { key: 'duelResult', href: '/duel-result', label: 'Duel result', tab: false },
   /**
    * Asistente de crear duelo. Tampoco es destino de la barra: se abre desde el
    * atajo de la pantalla principal (`/new-duel`) o desde el botón de retar de

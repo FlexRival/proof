@@ -12,7 +12,7 @@ import { ROUTES } from '@/constants/routes';
 import { BottomTabInset, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useProfile } from '@/hooks/use-profile';
 import { useTranslation } from '@/hooks/use-translation';
-import { PROFILE_DEMO } from '@/lib/demo-data';
+import { useDuels } from '@/hooks/use-duels';
 import { formatCompact, formatCount } from '@/lib/format';
 import { levelProgress } from '@/lib/xp';
 
@@ -27,11 +27,13 @@ import { levelProgress } from '@/lib/xp';
  * el hueco y la foto subida no aparecía en ningún sitio salvo Ajustes.
  *
  * Identidad (username, nivel, XP, racha) es **dato real de la sesión**
- * (`useProfile`). Victorias, derrotas, duelos y pasos totales **siguen en
- * `PROFILE_DEMO`**: no hay repositorio de duelos/pasos todavía (ver los
- * comentarios de `src/lib/demo-data.ts`) — mostrar un 0 falso ahí sería tan de
- * mentira como el número de la captura, así que se quedan como están hasta
- * que exista esa pieza.
+ * (`useProfile`), y desde KAN-32 victorias, derrotas y duelos se cuentan de los
+ * duelos ya cerrados (`useDuels`), no de una constante.
+ *
+ * **Pasos totales sigue en cero**, y es honesto: `stepsRepository` solo sabe
+ * leer la ventana sincronizable (7 días), no el histórico entero, y sumar esa
+ * semana bajo el rótulo «TOTAL STEPS» sería peor que no dar el dato. Hace falta
+ * una agregación en el servidor que todavía no existe.
  *
  * Dos desvíos conscientes respecto a la captura:
  * - La captura rotula `@marcodev · VANGUARD`, y VANGUARD es una **clase de
@@ -44,13 +46,23 @@ import { levelProgress } from '@/lib/xp';
  */
 export default function ProfileScreen() {
   const { state: profileState } = useProfile();
+  const { state: duelsState } = useDuels();
   const { t } = useTranslation();
 
-  // Todavía de mentira: sin duel-repository ni agregación de step_logs no hay
-  // de dónde sacar esto de verdad. Ver el comentario de arriba.
-  const { wins, losses, totalSteps } = PROFILE_DEMO;
-  const duels = wins + losses;
-  const winRate = duels > 0 ? Math.round((wins / duels) * 100) : 0;
+  const finished = duelsState.status === 'ready' ? duelsState.data.finished : [];
+  const wins = finished.filter((duel) => duel.outcome === 'win').length;
+  const losses = finished.filter((duel) => duel.outcome === 'loss').length;
+  // Cuenta los empates también: un duelo empatado se jugó igual, y dejarlo
+  // fuera haría que «DUELS» no cuadrara con el historial de la otra pestaña.
+  const duels = finished.length;
+  // El porcentaje se mide sobre los duelos decididos: un empate no es media
+  // victoria, y meterlo en el denominador bajaría el ratio sin haber perdido.
+  const decided = wins + losses;
+  const winRate = decided > 0 ? Math.round((wins / decided) * 100) : 0;
+
+  // Sin agregación de `step_logs` en el servidor no hay de dónde sacarlo; ver
+  // el comentario de arriba.
+  const totalSteps = 0;
 
   if (profileState.status !== 'ready') {
     // El guard de sesión de `_layout.tsx` ya garantiza que llegar aquí implica

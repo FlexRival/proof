@@ -13,10 +13,10 @@ import { ThemedView } from '@/components/atoms/themed-view';
 import { ROUTES } from '@/constants/routes';
 import { MaxContentWidth, Palette, Radius, Spacing } from '@/constants/theme';
 import { useProfile } from '@/hooks/use-profile';
+import { useSteps } from '@/hooks/use-steps';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/use-translation';
 import { LANGUAGE_NAMES, LANGUAGES, type Language } from '@/lib/i18n';
-import { SETTINGS_DEMO } from '@/lib/demo-data';
 import { formatCount, formatJoinDate } from '@/lib/format';
 import { levelProgress } from '@/lib/xp';
 import { profileRepository, RepositoryError } from '@/repositories';
@@ -149,17 +149,7 @@ export default function SettingsScreen() {
           {avatarError ? <Notice tone="rival" message={avatarError} /> : null}
 
           <Section title={t('settings.activitySource')}>
-            <SettingRow label={t('settings.stepTracking')}>
-              <ThemedText type="smallBold" themeColor="textMuted">
-                {SETTINGS_DEMO.stepTracking}
-              </ThemedText>
-            </SettingRow>
-
-            <SettingRow label={t('settings.dailyStepGoal')}>
-              <ThemedText type="smallBold" themeColor="textMuted">
-                {formatCount(SETTINGS_DEMO.dailyStepGoal)}
-              </ThemedText>
-            </SettingRow>
+            <ActivitySourceRows />
           </Section>
 
           <Section title={t('settings.language')}>
@@ -197,6 +187,49 @@ export default function SettingsScreen() {
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
+  );
+}
+
+/**
+ * Origen de la actividad: si los pasos están conectados y contra qué meta se
+ * miden.
+ *
+ * Las dos filas dicen la verdad del sistema desde KAN-50: el estado sale del
+ * permiso real del teléfono y la meta, de `daily_step_goal()` en el servidor —
+ * la misma cifra que decide la racha. Antes las dos estaban escritas a mano en
+ * `demo-data.ts`, y la meta local (10.000) ni siquiera coincidía con la del
+ * servidor (6.000).
+ *
+ * La meta todavía **no se puede cambiar** desde aquí: no hay ninguna columna
+ * donde guardar una meta por usuario, así que la fila informa y no edita.
+ */
+function ActivitySourceRows() {
+  const { t } = useTranslation();
+  const { state } = useSteps();
+
+  const steps = state.status === 'ready' ? state.data : null;
+  const tracking = !steps
+    ? '—'
+    : steps.access.status === 'granted'
+      ? t('settings.connected')
+      : steps.access.status === 'unavailable'
+        ? t('settings.unavailable')
+        : t('settings.notConnected');
+
+  return (
+    <>
+      <SettingRow label={t('settings.stepTracking')}>
+        <ThemedText type="smallBold" themeColor="textMuted">
+          {tracking}
+        </ThemedText>
+      </SettingRow>
+
+      <SettingRow label={t('settings.dailyStepGoal')}>
+        <ThemedText type="smallBold" themeColor="textMuted">
+          {steps ? formatCount(steps.goal) : '—'}
+        </ThemedText>
+      </SettingRow>
+    </>
   );
 }
 

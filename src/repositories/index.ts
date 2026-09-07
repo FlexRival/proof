@@ -13,9 +13,11 @@
 import { supabase } from '@/lib/supabase';
 import { CachedFriendshipRepository } from '@/repositories/cached-friendship-repository';
 import { CachedProfileRepository } from '@/repositories/cached-profile-repository';
+import type { DuelRepository } from '@/repositories/duel-repository';
 import type { FriendshipRepository } from '@/repositories/friendship-repository';
 import type { ProfileRepository } from '@/repositories/profile-repository';
 import type { StepsRepository } from '@/repositories/steps-repository';
+import { SupabaseDuelRepository } from '@/repositories/supabase/duel-repository';
 import { SupabaseFriendshipRepository } from '@/repositories/supabase/friendship-repository';
 import { SupabaseProfileRepository } from '@/repositories/supabase/profile-repository';
 import { SupabaseStepsRepository } from '@/repositories/supabase/steps-repository';
@@ -28,7 +30,17 @@ export type {
   Friendships,
   ProfileMatch,
 } from '@/repositories/friendship-repository';
+export type {
+  Duel,
+  DuelOpponent,
+  DuelOutcome,
+  DuelRepository,
+  DuelStatus,
+  Duels,
+} from '@/repositories/duel-repository';
+export { DEFAULT_DUEL_DAYS, DuelLimitReachedError } from '@/repositories/duel-repository';
 export type { StepSyncOutcome, StepsRepository } from '@/repositories/steps-repository';
+export { SYNC_WINDOW_DAYS } from '@/repositories/steps-repository';
 export { RepositoryError } from '@/repositories/errors';
 
 const profiles = new CachedProfileRepository(new SupabaseProfileRepository(supabase));
@@ -53,3 +65,11 @@ export const friendshipRepository: FriendshipRepository = new CachedFriendshipRe
  * guardado de hace 30 segundos podría no ser el que decide el duelo.
  */
 export const stepsRepository: StepsRepository = new SupabaseStepsRepository(supabase);
+
+/**
+ * Sin caché, por el mismo motivo que los pasos y con más razón: cada lectura
+ * **resincroniza el marcador** de los duelos activos contra `step_logs`. Un
+ * duelo servido desde una caché de 30 segundos es un duelo en el que el rival
+ * parece parado, que es justo lo contrario de lo que vende el producto.
+ */
+export const duelRepository: DuelRepository = new SupabaseDuelRepository(supabase);

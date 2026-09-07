@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -5,33 +6,25 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/atoms/button';
 import { Card } from '@/components/atoms/card';
 import { MeterBar } from '@/components/atoms/meter-bar';
-import { Notice } from '@/components/molecules/notice';
-import { SegmentedControl, type SegmentedOption } from '@/components/molecules/segmented-control';
 import { ThemedText } from '@/components/atoms/themed-text';
 import { ThemedView } from '@/components/atoms/themed-view';
+import { Notice } from '@/components/molecules/notice';
+import { SegmentedControl, type SegmentedOption } from '@/components/molecules/segmented-control';
 import { BottomTabInset, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { useDuels } from '@/hooks/use-duels';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/use-translation';
-import {
-  ACTIVE_DUELS,
-  FEATURED_DUEL,
-  INCOMING_DUELS,
-  OUTGOING_DUELS,
-  type ActiveDuel,
-  type PendingDuel,
-} from '@/lib/demo-data';
+import { daysRemaining, durationInDays, mostUrgent, standingOf, stepGap } from '@/lib/duel';
 import { formatCount } from '@/lib/format';
+import type { Duel, Duels } from '@/repositories';
 
 /**
- * Duelos, con sus tres filtros: activos, pendientes y enviados.
+ * Duelos, con sus tres filtros: activos, pendientes e historial.
  *
- * **Sin datos todavía**, y a propósito: falta un `duel-repository.ts` que
- * envuelva las RPC `respond_to_duel` y compañía, así que `ACTIVE_DUELS` /
- * `INCOMING_DUELS` / `OUTGOING_DUELS` van vacíos en vez de con duelos
- * inventados — cada pestaña cae en su estado vacío real.
- *
- * `HISTORY` no tiene captura, así que va con un vacío sobrio en vez de con un
- * diseño inventado.
+ * Datos reales desde KAN-32 (`useDuels` → `duelRepository`). Cada vez que se
+ * carga, el repositorio resincroniza el marcador de los activos contra
+ * `step_logs` y el hook cierra los que ya vencieron, así que lo que se ve aquí
+ * es el estado del servidor y no el de la última vez que alguien abrió la app.
  */
 type DuelFilter = 'active' | 'pending' | 'history';
 
@@ -39,9 +32,9 @@ type DuelFilter = 'active' | 'pending' | 'history';
 type Translate = ReturnType<typeof useTranslation>['t'];
 
 /**
- * Los tres filtros. Función y no constante de módulo porque su texto cambia
- * con el idioma: una constante se congelaría en el idioma que hubiera cuando
- * se cargó el archivo.
+ * Los tres filtros. Función y no constante de módulo porque su texto cambia con
+ * el idioma: una constante se congelaría en el idioma que hubiera cuando se
+ * cargó el archivo.
  */
 function filterOptions(t: Translate): SegmentedOption<DuelFilter>[] {
   return [
@@ -51,9 +44,24 @@ function filterOptions(t: Translate): SegmentedOption<DuelFilter>[] {
   ];
 }
 
+/**
+ * Cuánto le queda al duelo. Un duelo vencido que todavía figura activo está
+ * esperando a que `resolve_duel` lo cierre —lo hace el hook al cargar, o el
+ * cron horario—, así que se rotula «cerrando» en vez de con un número negativo.
+ */
+function countdownLabel(duel: Duel, t: Translate): string {
+  const days = daysRemaining(duel.endDate);
+
+  if (days < 0) return t('duels.closing');
+  if (days === 0) return t('duels.endsToday');
+
+  return t('duels.endsInDays', { days });
+}
+
 export default function DuelsScreen() {
   const [filter, setFilter] = useState<DuelFilter>('active');
   const { t } = useTranslation();
+  const { state, respond } = useDuels();
 
   return (
     <ThemedView style={styles.screen}>
@@ -66,12 +74,12 @@ export default function DuelsScreen() {
 
           <SegmentedControl options={filterOptions(t)} value={filter} onChange={setFilter} />
 
-          {filter === 'active' ? <ActiveDuels /> : null}
-          {filter === 'pending' ? <PendingDuels /> : null}
-          {filter === 'history' ? (
-            <ThemedText type="small" themeColor="textDim" style={styles.empty}>
-              {t('duels.noFinished')}
-            </ThemedText>
+          {state.status === 'loading' ? <Placeholder message={t('duels.loading')} /> : null}
+          {state.status === 'signedOut' ? <Placeholder message={t('duels.signedOut')} /> : null}
+          {state.status === 'error' ? <Notice message={state.message} tone="rival" /> : null}
+
+          {state.status === 'ready' ? (
+            <DuelLists filter={filter} duels={state.data} onRespond={respond} />
           ) : null}
         </ScrollView>
       </SafeAreaView>
@@ -79,43 +87,83 @@ export default function DuelsScreen() {
   );
 }
 
-function ActiveDuels() {
-  const { t } = useTranslation();
+function Placeholder({ message }: { message: string }) {
+  return (
+    <ThemedText type="small" themeColor="textDim" style={styles.empty}>
+      {message}
+    </ThemedText>
+  );
+}
 
-  if (!FEATURED_DUEL && ACTIVE_DUELS.length === 0) {
-    return (
-      <ThemedText type="small" themeColor="textDim" style={styles.empty}>
-        {t('duels.noActive')}
-      </ThemedText>
-    );
-  }
+type RespondFn = (duelId: string, accept: boolean) => Promise<void>;
 
+function DuelLists({
+  filter,
+  duels,
+  onRespond,
+}: {
+  filter: DuelFilter;
+  duels: Duels;
+  onRespond: RespondFn;
+}) {
   return (
     <>
-      {FEATURED_DUEL ? <FeaturedDuelCard duel={FEATURED_DUEL} /> : null}
-
-      {ACTIVE_DUELS.map((duel) => (
-        <DuelRow key={duel.opponent} duel={duel} />
-      ))}
+      {filter === 'active' ? <ActiveDuels duels={duels.active} /> : null}
+      {filter === 'pending' ? (
+        <PendingDuels incoming={duels.incoming} outgoing={duels.outgoing} onRespond={onRespond} />
+      ) : null}
+      {filter === 'history' ? <FinishedDuels duels={duels.finished} /> : null}
     </>
   );
 }
 
-function FeaturedDuelCard({ duel }: { duel: ActiveDuel }) {
+function ActiveDuels({ duels }: { duels: Duel[] }) {
   const { t } = useTranslation();
-  const { opponent, yourSteps, theirSteps, endsIn } = duel;
-  const leading = yourSteps >= theirSteps;
+  const featured = mostUrgent(duels);
+
+  if (!featured) {
+    return <Placeholder message={t('duels.noActive')} />;
+  }
+
+  return (
+    <>
+      <FeaturedDuelCard duel={featured} />
+
+      {duels
+        .filter((duel) => duel.id !== featured.id)
+        .map((duel) => (
+          <DuelRow key={duel.id} duel={duel} />
+        ))}
+    </>
+  );
+}
+
+/** Rótulo de estado del duelo destacado. */
+const STANDING_NOTICE = { leading: 'duels.leading', behind: 'duels.behind', tied: 'duels.tied' } as const;
+
+/**
+ * El duelo que está más cerca de acabar, en grande.
+ *
+ * El diseño traía aquí un botón «ver duelo», pero no hay pantalla de detalle a
+ * la que ir (KAN-28 sigue sin wireframes) y esta card ya enseña todo lo que
+ * tendría esa pantalla: marcador, diferencia y cuánto queda. Un botón que no
+ * lleva a ningún sitio se lee como un fallo, así que no se pinta hasta que
+ * exista el destino.
+ */
+function FeaturedDuelCard({ duel }: { duel: Duel }) {
+  const { t } = useTranslation();
+  const standing = standingOf(duel);
 
   return (
     <Card variant="highlight" style={styles.block}>
       <View style={styles.spread}>
         <Notice
-          message={t(leading ? 'duels.leading' : 'duels.behind')}
-          tone={leading ? 'primary' : 'rival'}
+          message={t(STANDING_NOTICE[standing])}
+          tone={standing === 'behind' ? 'rival' : 'primary'}
           style={styles.status}
         />
         <ThemedText type="label" themeColor="textMuted">
-          {endsIn}
+          {countdownLabel(duel, t)}
         </ThemedText>
       </View>
 
@@ -129,13 +177,15 @@ function FeaturedDuelCard({ duel }: { duel: ActiveDuel }) {
       </View>
 
       <View style={styles.spread}>
-        <SideCount label={t('duels.steps')} value={yourSteps} color="primary" />
-        <SideCount label={t('duels.steps')} value={theirSteps} color="defeat" align="right" />
+        <SideCount label={t('duels.steps')} value={duel.yourSteps} color="primary" />
+        <SideCount label={t('duels.steps')} value={duel.theirSteps} color="defeat" align="right" />
       </View>
 
-      <VersusBar yourSteps={yourSteps} theirSteps={theirSteps} />
+      <VersusBar yourSteps={duel.yourSteps} theirSteps={duel.theirSteps} />
 
-      <Button label={t('duels.viewDuelVs', { opponent })} />
+      <ThemedText type="caption" themeColor="textMuted">
+        {t('duels.vsOpponent', { opponent: duel.opponent.username })}
+      </ThemedText>
     </Card>
   );
 }
@@ -146,11 +196,17 @@ function FeaturedDuelCard({ duel }: { duel: ActiveDuel }) {
  */
 function VersusBar({ yourSteps, theirSteps }: { yourSteps: number; theirSteps: number }) {
   const theme = useTheme();
+  // Un 0–0 dejaría los dos `flex` a cero y la barra vacía; se reparte a medias.
+  const empty = yourSteps === 0 && theirSteps === 0;
 
   return (
     <View style={styles.versusBar}>
-      <View style={[styles.versusFill, { flex: yourSteps, backgroundColor: theme.primary }]} />
-      <View style={[styles.versusFill, { flex: theirSteps, backgroundColor: theme.defeat }]} />
+      <View
+        style={[styles.versusFill, { flex: empty ? 1 : yourSteps, backgroundColor: theme.primary }]}
+      />
+      <View
+        style={[styles.versusFill, { flex: empty ? 1 : theirSteps, backgroundColor: theme.defeat }]}
+      />
     </View>
   );
 }
@@ -177,11 +233,10 @@ function SideCount({ label, value, color, align = 'left' }: SideCountProps) {
   );
 }
 
-function DuelRow({ duel }: { duel: ActiveDuel }) {
+function DuelRow({ duel }: { duel: Duel }) {
   const { t } = useTranslation();
-  const { opponent, yourSteps, theirSteps, endsIn } = duel;
-  const ahead = yourSteps >= theirSteps;
-  const gap = Math.abs(yourSteps - theirSteps);
+  const standing = standingOf(duel);
+  const ahead = standing !== 'behind';
 
   return (
     <Card style={styles.row}>
@@ -190,57 +245,67 @@ function DuelRow({ duel }: { duel: ActiveDuel }) {
 
       <View style={styles.rowBody}>
         <View style={styles.spread}>
-          <ThemedText type="bodyBold">{t('duels.vsOpponent', { opponent })}</ThemedText>
+          <ThemedText type="bodyBold">
+            {t('duels.vsOpponent', { opponent: duel.opponent.username })}
+          </ThemedText>
           <ThemedText type="smallBold" themeColor={ahead ? 'primary' : 'defeat'}>
-            {t(ahead ? 'duels.ahead' : 'duels.behindBy', { gap: formatCount(gap) })}
+            {standing === 'tied'
+              ? t('duels.tied')
+              : t(standing === 'leading' ? 'duels.ahead' : 'duels.behindBy', {
+                  gap: formatCount(stepGap(duel)),
+                })}
           </ThemedText>
         </View>
 
         <MeterBar
-          value={yourSteps}
-          max={Math.max(yourSteps, theirSteps)}
+          value={duel.yourSteps}
+          max={Math.max(duel.yourSteps, duel.theirSteps)}
           tone={ahead ? 'power' : 'muted'}
         />
 
         <ThemedText type="caption" themeColor="textMuted">
-          {`${formatCount(yourSteps)} · ${formatCount(theirSteps)} · ${endsIn}`}
+          {`${formatCount(duel.yourSteps)} · ${formatCount(duel.theirSteps)} · ${countdownLabel(duel, t)}`}
         </ThemedText>
       </View>
     </Card>
   );
 }
 
-function PendingDuels() {
+function PendingDuels({
+  incoming,
+  outgoing,
+  onRespond,
+}: {
+  incoming: Duel[];
+  outgoing: Duel[];
+  onRespond: RespondFn;
+}) {
   const { t } = useTranslation();
 
-  if (INCOMING_DUELS.length === 0 && OUTGOING_DUELS.length === 0) {
-    return (
-      <ThemedText type="small" themeColor="textDim" style={styles.empty}>
-        {t('duels.noPending')}
-      </ThemedText>
-    );
+  if (incoming.length === 0 && outgoing.length === 0) {
+    return <Placeholder message={t('duels.noPending')} />;
   }
 
   return (
     <>
-      {INCOMING_DUELS.length > 0 ? (
+      {incoming.length > 0 ? (
         <>
           <ThemedText type="label" themeColor="textDim">
             {t('duels.incoming')}
           </ThemedText>
-          {INCOMING_DUELS.map((duel) => (
-            <PendingRow key={duel.opponent} duel={duel} incoming />
+          {incoming.map((duel) => (
+            <IncomingRow key={duel.id} duel={duel} onRespond={onRespond} />
           ))}
         </>
       ) : null}
 
-      {OUTGOING_DUELS.length > 0 ? (
+      {outgoing.length > 0 ? (
         <>
           <ThemedText type="label" themeColor="textDim">
-            WAITING FOR THEM
+            {t('duels.outgoing')}
           </ThemedText>
-          {OUTGOING_DUELS.map((duel) => (
-            <PendingRow key={duel.opponent} duel={duel} incoming={false} />
+          {outgoing.map((duel) => (
+            <OutgoingRow key={duel.id} duel={duel} />
           ))}
         </>
       ) : null}
@@ -248,7 +313,126 @@ function PendingDuels() {
   );
 }
 
-function PendingRow({ duel, incoming }: { duel: PendingDuel; incoming: boolean }) {
+/**
+ * Un reto recibido, con sus dos botones.
+ *
+ * El error se guarda por fila y no en la pantalla entera: si falla aceptar un
+ * duelo, el mensaje tiene que salir junto al duelo que falló y no arriba del
+ * todo, donde no se sabría a cuál se refiere.
+ */
+function IncomingRow({ duel, onRespond }: { duel: Duel; onRespond: RespondFn }) {
+  const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  async function answer(accept: boolean) {
+    setBusy(true);
+    setFailed(false);
+
+    try {
+      await onRespond(duel.id, accept);
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card style={styles.pendingRow}>
+      <PendingHead duel={duel} note={t('duels.challengedYou', { days: durationInDays(duel) })} />
+
+      {failed ? <Notice message={t('duels.respondFailed')} tone="rival" /> : null}
+
+      <View style={styles.actions}>
+        <Button
+          label={t('duels.accept')}
+          disabled={busy}
+          style={styles.action}
+          onPress={() => void answer(true)}
+        />
+        <Button
+          label={t('duels.decline')}
+          variant="secondary"
+          disabled={busy}
+          style={styles.action}
+          onPress={() => void answer(false)}
+        />
+      </View>
+    </Card>
+  );
+}
+
+/**
+ * Un reto que mandaste tú. No lleva acciones: el esquema no tiene ninguna RPC
+ * para retirar un duelo pendiente (`supabase/SCHEMA.md` §6), así que solo queda
+ * esperar a que el otro conteste.
+ */
+function OutgoingRow({ duel }: { duel: Duel }) {
+  const { t } = useTranslation();
+
+  return (
+    <Card style={styles.pendingRow}>
+      <PendingHead
+        duel={duel}
+        note={t('duels.youChallenged', { days: durationInDays(duel) })}
+        badge={t('duels.pending')}
+      />
+    </Card>
+  );
+}
+
+function PendingHead({ duel, note, badge }: { duel: Duel; note: string; badge?: string }) {
+  const { t } = useTranslation();
+
+  return (
+    <View style={styles.rowHead}>
+      {/* Avatar (KAN-19). */}
+      <Card style={styles.rowAvatar} />
+
+      <View style={styles.rowBody}>
+        <ThemedText type="bodyBold">
+          {`${duel.opponent.username} · ${t('common.levelShort', { level: duel.opponent.level })}`}
+        </ThemedText>
+        <ThemedText type="caption" themeColor="textMuted">
+          {note}
+        </ThemedText>
+      </View>
+
+      {badge ? (
+        <ThemedText type="label" themeColor="textDim">
+          {badge}
+        </ThemedText>
+      ) : null}
+    </View>
+  );
+}
+
+function FinishedDuels({ duels }: { duels: Duel[] }) {
+  const { t } = useTranslation();
+
+  if (duels.length === 0) {
+    return <Placeholder message={t('duels.noFinished')} />;
+  }
+
+  return (
+    <>
+      {duels.map((duel) => (
+        <FinishedRow key={duel.id} duel={duel} />
+      ))}
+    </>
+  );
+}
+
+const OUTCOME_LABEL = { win: 'duels.won', loss: 'duels.lost', draw: 'duels.drew' } as const;
+const OUTCOME_COLOR = { win: 'victory', loss: 'defeat', draw: 'textMuted' } as const;
+
+function FinishedRow({ duel }: { duel: Duel }) {
+  const { t } = useTranslation();
+  // Un duelo terminado siempre trae `outcome`; el `??` es solo para no tener
+  // que afirmarlo con un `!` que el compilador no puede comprobar.
+  const outcome = duel.outcome ?? 'draw';
+
   return (
     <Card style={styles.pendingRow}>
       <View style={styles.rowHead}>
@@ -256,25 +440,24 @@ function PendingRow({ duel, incoming }: { duel: PendingDuel; incoming: boolean }
         <Card style={styles.rowAvatar} />
 
         <View style={styles.rowBody}>
-          <ThemedText type="bodyBold">{`${duel.opponent} · LV ${duel.level}`}</ThemedText>
+          <ThemedText type="bodyBold">
+            {t('duels.vsOpponent', { opponent: duel.opponent.username })}
+          </ThemedText>
           <ThemedText type="caption" themeColor="textMuted">
-            {duel.note}
+            {`${formatCount(duel.yourSteps)} · ${formatCount(duel.theirSteps)}`}
           </ThemedText>
         </View>
 
-        {incoming ? null : (
-          <ThemedText type="label" themeColor="textDim">
-            PENDING
-          </ThemedText>
-        )}
+        <ThemedText type="smallBold" themeColor={OUTCOME_COLOR[outcome]}>
+          {t(OUTCOME_LABEL[outcome])}
+        </ThemedText>
       </View>
 
-      {incoming ? (
-        <View style={styles.actions}>
-          <Button label="Accept" style={styles.action} />
-          <Button label="Decline" variant="secondary" style={styles.action} />
-        </View>
-      ) : null}
+      <Button
+        label={t('duels.viewResult')}
+        variant="secondary"
+        onPress={() => router.push({ pathname: '/duel-result', params: { duel: duel.id } })}
+      />
     </Card>
   );
 }

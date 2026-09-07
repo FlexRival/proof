@@ -9,6 +9,26 @@
 
 import type { DailySteps } from '@/lib/steps/types';
 
+/**
+ * Cuántos días hacia atrás sincroniza la app.
+ *
+ * Espeja `step_sync_backfill_days()` en
+ * `20260906130000_step_sync_anticheat.sql`. Se duplica a propósito: no tiene
+ * sentido gastar una petición en días que el servidor va a descartar, ni leer
+ * del teléfono un histórico que después no se puede subir.
+ *
+ * Si los dos valores se desincronizan no se rompe nada: el servidor manda, y
+ * su ventana lleva un día de margen a cada lado (`± 1` por husos horarios),
+ * así que esta ventana local siempre cabe dentro de la suya. Un valor de más
+ * aquí solo hace que el servidor se salte esos días; uno de menos desaprovecha
+ * histórico. Aun así, conviene cambiarlos a la vez.
+ *
+ * Vive en el contrato y no en la implementación de Supabase porque también lo
+ * necesita quien **lee del teléfono** (`useSteps`), y esa capa no puede
+ * importar nada del backend (skill `repository-pattern`, regla 1).
+ */
+export const SYNC_WINDOW_DAYS = 7;
+
 /** Qué pasó al intentar subir un día. */
 export type StepSyncOutcome = {
   date: string;
@@ -42,4 +62,15 @@ export interface StepsRepository {
 
   /** Los pasos que el servidor tiene guardados para el usuario de la sesión. */
   getStoredSteps(from: string, to: string): Promise<StepSyncOutcome[]>;
+
+  /**
+   * Meta diaria de pasos, la del servidor.
+   *
+   * Se pregunta en vez de escribirla en la app porque es **la misma cifra que
+   * decide la racha** (`recompute_streak`, `supabase/SCHEMA.md` §8): una meta
+   * local distinta enseñaría un objetivo cumplido junto a una racha que no
+   * sube. Es un placeholder tuneable en el servidor (`daily_step_goal()`, hoy
+   * `6000`), así que cambiarla no puede exigir publicar una versión de la app.
+   */
+  getDailyStepGoal(): Promise<number>;
 }

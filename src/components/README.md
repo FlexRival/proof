@@ -22,7 +22,9 @@ clasificado: o se sube el átomo de nivel, o se baja lo que necesita.
   ha subido ninguna; la usan la cabecera de Perfil, la fila de Ajustes y los
   resultados de buscar amigos).
 - **`organisms/`** — `XpProgress` (nivel + `XpBar`), `EmptyState`
-  (ilustración + copy + `Button`), `AppTabs` (la barra de pestañas).
+  (ilustración + copy + `Button`), `AppTabs` (la barra de pestañas),
+  `DuelShareCard` (la lámina 4:5 del resultado de un duelo, que es además la
+  vista que `react-native-view-shot` captura para compartir).
 
 ## Dónde están las *pages* — y por qué no están aquí
 
