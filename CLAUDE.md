@@ -129,12 +129,29 @@ ProofIt es una app RPG móvil desarrollada con Expo (React Native) donde los pas
   (`send_friend_request`, `respond_to_friend_request`,
   `cancel_friend_request`, `remove_friend`). A diferencia de clanes, la tabla
   no es pública — solo la ven los dos implicados. Ver `supabase/SCHEMA.md` §13.
+- **Legal y borrado de cuenta (KAN-53, parte de KAN-54/56):**
+  `docs/legal.md` es la referencia — qué se hizo, qué falta y las respuestas
+  exactas de los tres formularios de tienda. Los textos viven en
+  `src/lib/legal/` (privacidad y términos, ES/EN, como **datos** y no JSX, para
+  que la landing salga del mismo objeto) y se pintan en `/privacy` y `/terms`,
+  **fuera de los dos `Stack.Protected`**: hay que poder leerlos sin cuenta, y en
+  Android el diálogo de permisos de Health Connect abre `/privacy` desde fuera
+  de la app. El borrado es `Ajustes → Cuenta → Borrar cuenta` →
+  `profileRepository.deleteAccount()` → Edge Function `delete-account`; la RPC
+  `prepare_account_deletion()` traspasa antes el liderazgo de clan porque
+  `clans.leader_id` es `ON DELETE CASCADE` y si no se llevaría el clan entero
+  por delante. **`LEGAL_CONTACT` en `src/lib/legal/types.ts` son placeholders
+  sin rellenar y bloquean publicar.**
 - **Estado de migraciones:** las 2 migraciones de clanes
   (`20260903150000_clans.sql`, `20260903150500_clan_wars.sql`), la de
   amistades (`20260904110000_friendships.sql`) y las de suscripciones
   (`20260906120000_subscriptions.sql`,
   `20260906121000_expire_subscriptions_cron.sql`) aún no se han hecho
-  `supabase db push` al proyecto vinculado.
+  `supabase db push` al proyecto vinculado. Tampoco lo están la del anti-cheat
+  de pasos (`20260906130000_step_sync_anticheat.sql`), la del email
+  (`20260907120000_profile_email.sql`) ni la del borrado de cuenta
+  (`20260907130000_account_deletion.sql`), que además necesita
+  `supabase functions deploy delete-account`. Es KAN-48.
 - **Suscripciones (RevenueCat):** un solo entitlement `pro` (Free vs Pro, sin
   tiers). RevenueCat es la fuente de verdad; el backend sincroniza el estado
   vía webhook. Tabla `subscriptions` + `subscription_events` (idempotencia);

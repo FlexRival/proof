@@ -110,4 +110,18 @@ export interface ProfileRepository {
    * usuario de la sesión actual. Devuelve el perfil ya actualizado.
    */
   updateAvatar(image: PickedImage): Promise<Profile>;
+
+  /**
+   * Borra la cuenta del usuario de la sesión actual: el perfil, sus pasos, sus
+   * duelos, sus amistades y su foto. **No se puede deshacer y no hay papelera.**
+   *
+   * Es un requisito de tienda, no una función más: Apple (5.1.1(v)) y Google
+   * Play obligan a que una app que deja crear cuenta deje borrarla desde
+   * dentro. Quien la llame debe pedir confirmación explícita antes.
+   *
+   * Al terminar no queda sesión: el backend borra al usuario, así que quien
+   * escuche `onSessionChange` verá el cierre de sesión y la app volverá sola al
+   * login. No hace falta navegar a mano.
+   */
+  deleteAccount(): Promise<void>;
 }

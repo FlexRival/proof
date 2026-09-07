@@ -170,8 +170,11 @@ export default function PaywallScreen() {
 
           <View style={styles.legal}>
             <LegalLink label={t('paywall.restorePurchases')} onPress={handleRestore} />
-            <LegalLink label={t('paywall.terms')} />
-            <LegalLink label={t('paywall.privacy')} />
+            <LegalLink label={t('paywall.terms')} onPress={() => router.push(ROUTES.terms.href)} />
+            <LegalLink
+              label={t('paywall.privacy')}
+              onPress={() => router.push(ROUTES.privacy.href)}
+            />
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -336,9 +339,10 @@ function Benefit({ label }: { label: string }) {
 }
 
 /**
- * Letra pequeña del pie. «Restore Purchases» sí actúa —las stores exigen tener
- * restaurar a mano en la pantalla de pago—; los términos y la privacidad
- * todavía no tienen página a la que ir, así que se pintan sin destino.
+ * Letra pequeña del pie. Las tres entradas actúan, y las tres son exigencias
+ * de tienda, no adornos: «Restore Purchases» tiene que estar a mano en la
+ * pantalla de pago, y Apple no aprueba una suscripción cuyo paywall no enlace
+ * a unos términos y a una política de privacidad que se puedan leer.
  */
 function LegalLink({ label, onPress }: { label: string; onPress?: () => void }) {
   return (

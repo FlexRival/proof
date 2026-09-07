@@ -89,4 +89,15 @@ export class CachedProfileRepository implements ProfileRepository {
     this.cache.invalidate();
     return profile;
   }
+
+  /**
+   * El cierre de sesión que provoca el borrado ya invalidaría el caché por la
+   * suscripción del constructor, pero eso llega por un evento asíncrono. Aquí
+   * se invalida a mano y en el acto: lo que queda cacheado es el perfil de una
+   * cuenta que **ya no existe**, y no puede sobrevivir ni un render más.
+   */
+  async deleteAccount(): Promise<void> {
+    await this.inner.deleteAccount();
+    this.cache.invalidate();
+  }
 }

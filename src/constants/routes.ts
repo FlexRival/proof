@@ -26,7 +26,9 @@ export type RouteKey =
   | 'paywall'
   | 'login'
   | 'forgotPassword'
-  | 'resetPassword';
+  | 'resetPassword'
+  | 'privacy'
+  | 'terms';
 
 export type RouteDefinition = {
   key: RouteKey;
@@ -130,6 +132,17 @@ export const ROUTES: Record<RouteKey, RouteDefinition> = {
     label: 'New password',
     tab: false,
   },
+  /**
+   * Política de privacidad y términos de uso.
+   *
+   * Las dos únicas rutas que se abren desde **fuera** de la app: el pie del
+   * paywall las enlaza (Apple lo exige para vender una suscripción) y, en
+   * Android, el diálogo de permisos de Health Connect abre `/privacy` con un
+   * intent. Por eso viven fuera de los dos `Stack.Protected` — ver
+   * `_layout.tsx`.
+   */
+  privacy: { key: 'privacy', href: '/privacy', label: 'Privacy', tab: false },
+  terms: { key: 'terms', href: '/terms', label: 'Terms', tab: false },
 };
 
 /** Solo las rutas de la barra de navegación, en el orden en que se pintan. */

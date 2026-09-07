@@ -44,6 +44,9 @@ export default function SettingsScreen() {
   const [logOutError, setLogOutError] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const { state: profileState, reload: reloadProfile } = useProfile();
   const { t, language, setLanguage } = useTranslation();
@@ -58,6 +61,29 @@ export default function SettingsScreen() {
       setLogOutError(
         error instanceof RepositoryError ? error.message : t('settings.logOutFailed'),
       );
+    }
+  }
+
+  /**
+   * Borra la cuenta de verdad. Solo se llega aquí tras pulsar dos veces: la
+   * fila abre la confirmación, y esto lo dispara el botón de dentro.
+   *
+   * No navega al terminar. Borrar al usuario cierra su sesión, `useProfile()`
+   * lo nota y `Stack.Protected` cambia solo a `login` — igual que el logout.
+   */
+  async function handleDeleteAccount() {
+    setDeleteError(null);
+    setDeleting(true);
+    try {
+      await profileRepository.deleteAccount();
+    } catch (error) {
+      setDeleteError(
+        error instanceof RepositoryError ? error.message : t('settings.deleteFailed'),
+      );
+      // Solo se levanta el "borrando" si falló: si salió bien, la pantalla
+      // está a punto de desmontarse y volver a habilitar el botón dejaría
+      // pulsarlo otra vez durante ese instante.
+      setDeleting(false);
     }
   }
 
@@ -200,12 +226,66 @@ export default function SettingsScreen() {
             )}
           </Section>
 
+          {/*
+            Los dos enlaces legales van aquí arriba, antes de las acciones
+            destructivas: son lectura, no operaciones sobre la cuenta. Hasta
+            ahora la fila de privacidad existía pero no llevaba a ninguna parte
+            —no tenía `onPress`—, que es justo el tipo de enlace muerto que
+            hace que una revisión de tienda se caiga.
+          */}
           <Section title={t('settings.account')}>
-            <SettingRow label={t('settings.privacy')} />
+            <SettingRow
+              label={t('settings.privacy')}
+              onPress={() => router.push(ROUTES.privacy.href)}
+            />
+
+            <SettingRow label={t('settings.terms')} onPress={() => router.push(ROUTES.terms.href)} />
 
             <SettingRow label={t('settings.logOut')} labelColor="defeat" onPress={handleLogOut} />
 
             {logOutError ? <Notice tone="rival" message={logOutError} /> : null}
+
+            {/*
+              Borrar la cuenta es obligatorio (Apple 5.1.1(v) y Google Play) y
+              es irreversible, así que pide dos pasos: esta fila abre la
+              confirmación y el botón de dentro es el que borra.
+
+              La confirmación se pinta EN LA PANTALLA y no con `Alert.alert`
+              porque `Alert` no hace nada en React Native Web: en web el botón
+              se quedaría muerto y nadie podría borrar su cuenta — que es
+              exactamente el incumplimiento que esto viene a resolver.
+            */}
+            {confirmingDelete ? (
+              <View style={styles.deleteConfirm}>
+                <Notice tone="rival" message={t('settings.deleteWarning')} />
+                <View style={styles.deleteActions}>
+                  <Button
+                    label={t('common.cancel')}
+                    variant="secondary"
+                    disabled={deleting}
+                    onPress={() => setConfirmingDelete(false)}
+                    style={styles.deleteAction}
+                  />
+                  <Button
+                    label={deleting ? t('settings.deleting') : t('settings.deleteConfirm')}
+                    disabled={deleting}
+                    onPress={handleDeleteAccount}
+                    style={styles.deleteAction}
+                  />
+                </View>
+              </View>
+            ) : (
+              <SettingRow
+                label={t('settings.deleteAccount')}
+                labelColor="defeat"
+                onPress={() => {
+                  setDeleteError(null);
+                  setConfirmingDelete(true);
+                }}
+              />
+            )}
+
+            {deleteError ? <Notice tone="rival" message={deleteError} /> : null}
           </Section>
         </ScrollView>
       </SafeAreaView>
@@ -396,4 +476,8 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     minHeight: 48,
   },
+  deleteConfirm: { gap: Spacing.two },
+  deleteActions: { flexDirection: 'row', gap: Spacing.two },
+  /** Los dos botones reparten el ancho: ninguno se lee como el "por defecto". */
+  deleteAction: { flex: 1 },
 });

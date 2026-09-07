@@ -22,6 +22,8 @@ Referencia de la capa de datos (Supabase / Postgres). Léela antes de tocar
 | `migrations/20260906130000_step_sync_anticheat.sql` | Anti-cheat del marcador: **revoca el `INSERT`/`UPDATE` directo del cliente sobre `step_logs`** y lo sustituye por las RPCs `sync_daily_steps` / `sync_daily_steps_batch`, con tope diario (`daily_step_cap()`), ventana de fechas (`step_sync_backfill_days()`) y monotonía por día. Columnas de auditoría `source` / `reported_steps` / `synced_at`. Rechazos con `ERRCODE 'STP01'` (fecha) y `'STP02'` (origen). Ver §16. |
 | `migrations/20260907120000_profile_email.sql` | Columna `profiles.email` (copia de `auth.users.email`, `NOT NULL` + `UNIQUE`), con backfill de las filas existentes. `handle_new_user()` pasa a rellenarla también; nuevo trigger `on_auth_user_email_updated` la mantiene al día si el usuario cambia su email. No se concede `SELECT` sobre ella en la tabla base (es PII); se expone solo vía la vista `my_profile`, filtrada a `auth.uid()`. Ver §3.1. |
 
+| `migrations/20260907130000_account_deletion.sql` | Borrado de cuenta (requisito de tienda): RPC `prepare_account_deletion()`, que traspasa el liderazgo de clan **antes** de que el borrado de `auth.users` dispare el `CASCADE` — sin ella, borrar a un líder borraría su clan entero y a todos sus miembros. El borrado en sí lo hace la Edge Function `delete-account`. Ver §17. |
+
 Estado de aplicación:
 
 - Las tres primeras (`…135409`, `…140914`, `…141500`) están aplicadas en el
@@ -796,6 +798,74 @@ luego con `VALIDATE CONSTRAINT`.
 
 El trigger `step_logs_streak` (§8) sigue funcionando igual: corre `AFTER INSERT
 OR UPDATE OF steps_count`, y la RPC hace exactamente eso.
+
+---
+
+## 17. Borrado de cuenta (`20260907130000_account_deletion.sql`)
+
+Apple (guía 5.1.1(v)) y Google Play obligan a que una app que deja **crear**
+cuenta deje **borrarla desde dentro**. Play pide además una ruta web para
+pedirlo sin tener la app instalada. Ver `docs/legal.md`.
+
+### Quién borra qué
+
+Casi nada se borra a mano. `profiles.id` referencia `auth.users(id) ON DELETE
+CASCADE`, y `step_logs`, `duels`, `friendships`, `clan_members`,
+`clan_war_participants` y `subscriptions` cuelgan de `profiles` con cascade. Es
+decir: **borrar el usuario de Auth vacía toda la capa de datos por sí solo.**
+
+Ese borrado lo hace la Edge Function `delete-account` con la service role key
+(`auth.users` no se toca desde SQL de aplicación), y se despliega con
+`verify_jwt = true`: el id que se borra sale siempre del `sub` del JWT del que
+llama, nunca del body. Mismo principio que `revenuecat-reconcile` (§16).
+
+### Lo que el cascade haría mal
+
+**`prepare_account_deletion()`** (`SECURITY DEFINER`, concedida a
+`authenticated`) existe solo por un motivo: `clans.leader_id` también es
+`ON DELETE CASCADE`. Sin ella, borrar la cuenta de un líder borraría **la fila
+del clan** y con ella a todos sus miembros — un usuario ejerciendo su derecho al
+borrado disolvería el clan de otras veinte personas.
+
+La función traspasa el mando antes de que nada se borre:
+
+| Situación | Qué hace |
+|---|---|
+| No pertenece a ningún clan | Nada; el cascade se basta |
+| Es miembro u oficial | Lo saca de `clan_members` |
+| Es líder y está solo | Borra miembros y luego el clan |
+| Es líder con más gente | Asciende al **oficial más antiguo**; si no hay oficiales, al **miembro más antiguo** |
+
+Diferencia importante con `leave_clan()` (§10): aquella **lanza excepción** si el
+líder no tiene oficiales («asciende a un oficial o disuelve el clan antes de
+salir»). Aquí eso sería ilegal — el borrado es un derecho, no una negociación —
+así que siempre encuentra sucesor.
+
+### Orden de los tres pasos de la Edge Function
+
+1. **Foto de perfil** (bucket `avatars`, §14). Los objetos de Storage no cuelgan
+   de ninguna foreign key: el cascade no los toca. Van primero porque, si se
+   borrasen después del usuario y algo fallara, quedarían huérfanos para siempre
+   y sin nadie a quien atribuirlos.
+2. **`prepare_account_deletion()`**, con la sesión del usuario (la RPC se apoya
+   en `auth.uid()`).
+3. **`auth.admin.deleteUser()`**, que dispara el cascade.
+
+### Lo que se deja morir a propósito
+
+- **Duelos PENDING y ACTIVE**: desaparecen con el cascade. No se resuelven a
+  favor del superviviente — regalar la victoria convertiría «creo cuenta, reto a
+  mi amigo, la borro» en una fábrica de XP gratis.
+- **Duelos FINISHED**: se borran también. La fila guarda los pasos y el
+  resultado de quien se va. El XP que el rival ya ganó vive en `profiles.xp` y
+  no se toca.
+- **`subscription_events`**: es `ON DELETE SET NULL` (§15), así que el histórico
+  de facturación sobrevive sin apuntar a nadie. Es la retención por obligación
+  fiscal que declara el apartado 7 de la política de privacidad.
+
+**La suscripción de la tienda NO se cancela** al borrar la cuenta: la gestiona
+Apple o Google y solo el usuario puede hacerlo. La app avisa de ello en la
+confirmación de borrado.
 
 ---
 

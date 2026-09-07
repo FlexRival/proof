@@ -15,6 +15,7 @@ import type { Translations } from '@/lib/i18n/translations/en';
 export const es: Translations = {
   common: {
     back: 'Atrás',
+    cancel: 'Cancelar',
     settings: 'Ajustes',
     level: 'NIVEL %{level}',
     levelShort: 'NV %{level}',
@@ -252,7 +253,18 @@ export const es: Translations = {
     planFree: 'GRATIS',
     goPro: 'Hazte Pro',
     account: 'CUENTA',
-    privacy: 'Privacidad y visibilidad',
+    privacy: 'Política de privacidad',
+    terms: 'Términos de uso',
     logOut: 'Cerrar sesión',
+    deleteAccount: 'Borrar cuenta',
+    deleteWarning:
+      'Se borra todo: tu perfil, tus pasos, tus duelos y tus amigos. No se puede deshacer. Si tienes una suscripción activa, cancélala primero en la tienda.',
+    deleteConfirm: 'Borrar para siempre',
+    deleting: 'Borrando…',
+    deleteFailed: 'No se pudo borrar tu cuenta.',
+  },
+
+  legal: {
+    lastUpdated: 'Última actualización: %{date}',
   },
 };

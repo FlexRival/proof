@@ -223,4 +223,27 @@ export class SupabaseProfileRepository implements ProfileRepository {
 
     return toProfile(data);
   }
+
+  async deleteAccount(): Promise<void> {
+    // Toda la operación vive en la Edge Function `delete-account`: borrar de
+    // `auth.users` necesita la service role key, que no puede viajar dentro de
+    // la app. Aquí no se manda ningún id — la función lo saca del JWT.
+    const { error } = await this.client.functions.invoke('delete-account', { method: 'POST' });
+
+    if (error) {
+      throw new RepositoryError('No se pudo borrar tu cuenta. Inténtalo de nuevo.', {
+        cause: error,
+      });
+    }
+
+    // El usuario ya no existe en el servidor, pero el token que quedó en el
+    // dispositivo sigue ahí hasta que se limpie. Sin esto, la app se quedaría
+    // enseñando una sesión fantasma que no puede leer nada.
+    //
+    // Se ignora el error a propósito: la cuenta ya está borrada y no hay vuelta
+    // atrás. Fallar aquí solo significa que el token local no se limpió — algo
+    // que se arregla solo en cuanto Supabase intente refrescarlo y le digan que
+    // ese usuario no existe.
+    await this.client.auth.signOut().catch(() => undefined);
+  }
 }

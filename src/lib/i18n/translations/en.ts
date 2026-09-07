@@ -15,6 +15,7 @@
 export const en = {
   common: {
     back: 'Back',
+    cancel: 'Cancel',
     settings: 'Settings',
     level: 'LEVEL %{level}',
     levelShort: 'LV %{level}',
@@ -255,8 +256,19 @@ export const en = {
     planFree: 'FREE',
     goPro: 'Go Pro',
     account: 'ACCOUNT',
-    privacy: 'Privacy and visibility',
+    privacy: 'Privacy Policy',
+    terms: 'Terms of Use',
     logOut: 'Log out',
+    deleteAccount: 'Delete account',
+    deleteWarning:
+      'Everything goes: your profile, your steps, your duels and your friends. This cannot be undone. If you have an active subscription, cancel it in the store first.',
+    deleteConfirm: 'Delete forever',
+    deleting: 'Deleting…',
+    deleteFailed: 'Could not delete your account.',
+  },
+
+  legal: {
+    lastUpdated: 'Last updated: %{date}',
   },
 } as const;
 

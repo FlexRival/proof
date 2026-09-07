@@ -102,6 +102,21 @@ export default function RootLayout() {
           siempre y da igual el orden.
         */}
         <Stack.Screen name="reset-password" />
+
+        {/*
+          Los textos legales también viven fuera de los dos guards, por otro
+          motivo: hay que poder leerlos SIN cuenta. Se aceptan al registrarse,
+          así que meterlos detrás del guard de "con sesión" obligaría a aceptar
+          algo que aún no se puede leer.
+
+          Y en Android hay un tercer camino que no pasa por la app: el diálogo
+          de permisos de Health Connect abre `privacy` en frío con un intent
+          (`androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE`). Si esa ruta
+          solo existiera con sesión iniciada, ese enlace —que Google comprueba—
+          llevaría al login.
+        */}
+        <Stack.Screen name="privacy" />
+        <Stack.Screen name="terms" />
       </Stack>
     </ThemeProvider>
   );
