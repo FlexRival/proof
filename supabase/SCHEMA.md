@@ -20,6 +20,7 @@ Referencia de la capa de datos (Supabase / Postgres). Léela antes de tocar
 | `migrations/20260906121000_expire_subscriptions_cron.sql` | Programa un job de `pg_cron` cada hora que llama a `expire_stale_subscriptions()` — red de seguridad para webhooks `EXPIRATION` perdidos. Sin `pg_net` ni secretos: la lógica es SQL. Ver §15. |
 | `migrations/20260906122000_free_tier_duel_limit.sql` | Primera puerta de pago: redefine `request_duel` para limitar a los usuarios gratis (`is_pro = false`) a `free_tier_daily_duel_limit()` duelos creados por día (hoy `1`); Pro sin límite. Helper `free_tier_daily_duel_limit()`. Rechazo con `ERRCODE 'PRO01'`. Ver §6. |
 | `migrations/20260906130000_step_sync_anticheat.sql` | Anti-cheat del marcador: **revoca el `INSERT`/`UPDATE` directo del cliente sobre `step_logs`** y lo sustituye por las RPCs `sync_daily_steps` / `sync_daily_steps_batch`, con tope diario (`daily_step_cap()`), ventana de fechas (`step_sync_backfill_days()`) y monotonía por día. Columnas de auditoría `source` / `reported_steps` / `synced_at`. Rechazos con `ERRCODE 'STP01'` (fecha) y `'STP02'` (origen). Ver §16. |
+| `migrations/20260907120000_profile_email.sql` | Columna `profiles.email` (copia de `auth.users.email`, `NOT NULL` + `UNIQUE`), con backfill de las filas existentes. `handle_new_user()` pasa a rellenarla también; nuevo trigger `on_auth_user_email_updated` la mantiene al día si el usuario cambia su email. No se concede `SELECT` sobre ella en la tabla base (es PII); se expone solo vía la vista `my_profile`, filtrada a `auth.uid()`. Ver §3.1. |
 
 Estado de aplicación:
 
@@ -30,9 +31,9 @@ Estado de aplicación:
   (`…110000_friendships`), la de foto de perfil (`…130000_profile_avatar`), las
   dos de suscripciones (`…120000_subscriptions`,
   `…121000_expire_subscriptions_cron`), la del límite de duelos gratis
-  (`…122000_free_tier_duel_limit`) y la del anti-cheat de pasos
-  (`…130000_step_sync_anticheat`) **todavía no se han hecho
-  `supabase db push`**.
+  (`…122000_free_tier_duel_limit`), la del anti-cheat de pasos
+  (`…130000_step_sync_anticheat`) y la del email en `profiles`
+  (`…120000_profile_email`) **todavía no se han hecho `supabase db push`**.
   Las de clanes y la de amistades se validaron
   ejecutándolas sobre un Postgres 18 efímero (PGlite) con su flujo completo;
   la de foto de perfil se validó sobre el stack local real de Supabase
@@ -52,7 +53,11 @@ Estado de aplicación:
   inválido que sí lo tumba y sin escritura a medias, lote de la ventana completa,
   lote desproporcionado, revocación de `INSERT`/`UPDATE` a `authenticated` a
   nivel de tabla **y** de columna, `SELECT` y `EXECUTE` intactos, `anon` sin
-  escritura, y el `CHECK` estructural). Los
+  escritura, y el `CHECK` estructural). `…120000_profile_email` se validó sobre
+  PGlite (9 asserts: backfill de filas previas a la migración, `handle_new_user()`
+  copiando el email al alta, `NOT NULL`, `UNIQUE`, sincronización al cambiar
+  `auth.users.email`, y `my_profile` devolviendo solo la fila de `auth.uid()`,
+  cambiando de fila y vacía sin sesión). Los
   dos ficheros de cron (`…090000_…`, `…121000_…`) **no se pueden validar así**
   porque ni PGlite ni el stack local por defecto traen `pg_cron`/`pg_net`
   activos — solo se prueban contra un proyecto Supabase real.
@@ -105,6 +110,7 @@ usuario de auth borra el perfil y todo lo que cuelga de él).
 | Columna | Notas |
 |---|---|
 | `username` | único, `CHECK` longitud 3–24 |
+| `email` | copia de `auth.users.email`, `NOT NULL` + `UNIQUE`. El cliente nunca la escribe: la rellena `handle_new_user()` al registrarse y la mantiene al día un trigger `AFTER UPDATE OF email ON auth.users`. A diferencia de `username`, es PII — no está en el `GRANT` de la tabla base (que cualquier autenticado puede leer vía `profiles_select_authenticated`); solo se expone a través de la vista `my_profile` (§3.1), filtrada a la fila propia. |
 | `level` | `CHECK >= 1`, solo servidor |
 | `xp` | `CHECK >= 0`, solo servidor |
 | `streak_days` | `CHECK >= 0`, solo servidor |
@@ -160,6 +166,26 @@ todos (es solo para el trigger).
 Como este trigger es la **única** forma de que nazca una fila de `profiles` (no
 hay policy de INSERT en `profiles`), cada perfil corresponde con seguridad a un
 usuario real de auth.
+
+### 3.1. Email y la vista `my_profile`
+
+`profiles.email` se rellena en `handle_new_user()` y se mantiene sincronizada
+por `handle_user_email_update()`, un segundo trigger `SECURITY DEFINER`
+(mismo endurecimiento: `search_path` fijo, nombres cualificados, `EXECUTE`
+revocado) sobre `AFTER UPDATE OF email ON auth.users`, que dispara solo
+cuando el email realmente cambia (`WHEN (OLD.email IS DISTINCT FROM NEW.email)`).
+
+A diferencia de `username`, el email es PII y la policy
+`profiles_select_authenticated` ya deja leer cualquier fila de `profiles`
+(para buscar amigos/rivales) — un `GRANT SELECT (email)` normal sobre la tabla
+base expondría el email de todos los usuarios a todos los usuarios, porque el
+`GRANT` de columna no filtra por fila, solo la policy lo hace. Por eso
+`profiles.email` **no** está en el `GRANT` de la tabla base: se expone solo a
+través de la vista `public.my_profile` (`security_invoker = on`), que añade su
+propio filtro `WHERE id = (SELECT auth.uid())` y tiene su propio `GRANT SELECT
+TO authenticated`. Un usuario logueado ve su fila completa (con email)
+consultando `my_profile`; consultando `profiles` directamente sigue sin ver el
+email de nadie, ni siquiera el suyo.
 
 ---
 
