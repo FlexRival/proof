@@ -58,3 +58,9 @@ docs/marketing/
 scripts/instagram-*
 scripts/render-instagram-*
 *.instagram.*
+
+# Reels de Remotion (local only, mismo criterio que el resto del marketing).
+# Es un proyecto npm aparte, con su propio node_modules y sus MP4 renderizados.
+# `tsconfig.json` lo excluye del typecheck de la app aunque no se suba: la
+# exclusión hace falta igual, porque la carpeta sí existe en disco.
+reels/
