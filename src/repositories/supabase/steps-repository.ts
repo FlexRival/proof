@@ -86,4 +86,16 @@ export class SupabaseStepsRepository implements StepsRepository {
 
     return data;
   }
+
+  async getTotalSteps(): Promise<number> {
+    const { data, error } = await this.client.rpc('total_steps');
+
+    if (error) {
+      throw new RepositoryError('No se pudieron leer los pasos totales.', { cause: error });
+    }
+
+    // Un `bigint` viaja como cadena en PostgREST si no cabe en un number
+    // seguro. Con pasos humanos no va a pasar, pero convertir es gratis.
+    return Number(data ?? 0);
+  }
 }

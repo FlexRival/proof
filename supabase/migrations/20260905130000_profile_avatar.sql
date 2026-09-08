@@ -1,5 +1,5 @@
 -- ============================================================================
--- MIGRACIÓN: FOTO DE PERFIL — ProofIt
+-- MIGRACIÓN: FOTO DE PERFIL — Prooffit
 --
 -- `profiles.avatar_url` guarda la URL pública de la foto subida por el
 -- usuario a Storage. No es un dato anti-cheat (no da ninguna ventaja de

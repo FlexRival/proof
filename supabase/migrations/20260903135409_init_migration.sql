@@ -1,5 +1,5 @@
 -- ============================================================================
--- MIGRACIÓN INICIAL — ProofIt
+-- MIGRACIÓN INICIAL — Prooffit
 -- Tablas base: profiles, step_logs, duels + RLS + grants a nivel de columna.
 --
 -- Modelo de seguridad (anti-cheat):

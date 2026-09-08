@@ -9,7 +9,7 @@ Fit) ya no se puede usar.
 
 ---
 
-## 1. Qué necesita ProofIt exactamente
+## 1. Qué necesita Prooffit exactamente
 
 No basta con «leer los pasos de hoy». El modelo de datos de
 [`supabase/SCHEMA.md`](../supabase/SCHEMA.md) impone cuatro requisitos:
@@ -51,7 +51,7 @@ para poco más:
 | Histórico en iOS | **Solo 7 días** hacia atrás |
 | `watchStepCount()` | **No entrega nada con la app en segundo plano** |
 
-Traducido a ProofIt: en Android no se pueden consultar los pasos de días
+Traducido a Prooffit: en Android no se pueden consultar los pasos de días
 anteriores, así que un duelo de 7 días no se puede puntuar. Y en iOS el margen de
 7 días deja sin colchón a un duelo de esa misma duración.
 
@@ -156,7 +156,7 @@ procedencia son trabajo de servidor, no de la app.
 declaration form*, declarando cada tipo de dato que se lee y para qué. Solo se
 aprueban casos de uso justificados — y la buena noticia es que **«juegos con
 mecánicas basadas en fitness» está en la lista de casos aprobados**, que es
-exactamente ProofIt. Pedir más tipos de dato de los que se usan es motivo de
+exactamente Prooffit. Pedir más tipos de dato de los que se usan es motivo de
 rechazo: hay que pedir solo pasos.
 
 **App Store.** Las reglas de HealthKit no se negocian y su incumplimiento puede

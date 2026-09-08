@@ -1,7 +1,7 @@
 import { LEGAL_CONTACT, type LocalizedLegalDocument } from '@/lib/legal/types';
 
 /**
- * Términos de uso de ProofIt.
+ * Términos de uso de Prooffit.
  *
  * OBLIGATORIOS PORQUE HAY SUSCRIPCIÓN. Apple exige que el paywall enlace a
  * unos términos (propios o el EULA estándar de Apple) y que digan, sin
@@ -23,13 +23,13 @@ export const termsOfService: LocalizedLegalDocument = {
     title: 'Términos de uso',
     lastUpdated: '2026-09-07',
     intro: [
-      'Estas son las reglas de usar ProofIt. Al crear una cuenta las aceptas. Son cortas a propósito.',
+      'Estas son las reglas de usar Prooffit. Al crear una cuenta las aceptas. Son cortas a propósito.',
     ],
     sections: [
       {
-        heading: '1. Qué es ProofIt',
+        heading: '1. Qué es Prooffit',
         body: [
-          'ProofIt es un juego. Cuenta los pasos que da tu teléfono y los convierte en progreso: niveles, duelos contra tus amigos y guerras entre clanes.',
+          'Prooffit es un juego. Cuenta los pasos que da tu teléfono y los convierte en progreso: niveles, duelos contra tus amigos y guerras entre clanes.',
           'No es una aplicación médica ni un producto sanitario. No mide tu salud, no diagnostica nada y no sustituye el consejo de un profesional. Si tienes dudas sobre si deberías hacer más ejercicio, pregunta a tu médico, no a nosotros.',
           'El recuento de pasos lo hace tu teléfono, no nosotros. Puede tener errores: los sensores no son perfectos y pueden contar de más o de menos.',
         ],
@@ -55,12 +55,12 @@ export const termsOfService: LocalizedLegalDocument = {
       {
         heading: '4. Suscripción Pro',
         body: [
-          'ProofIt se puede usar gratis. La suscripción Pro es opcional y desbloquea funciones adicionales, que se describen en la propia pantalla de compra en el momento de contratarla.',
+          'Prooffit se puede usar gratis. La suscripción Pro es opcional y desbloquea funciones adicionales, que se describen en la propia pantalla de compra en el momento de contratarla.',
           'El precio y la duración del periodo son los que aparecen en la pantalla de compra, ya en tu moneda, tal y como los facilita la tienda (App Store o Google Play).',
           'La suscripción se renueva automáticamente al final de cada periodo, y se te cobra el mismo importe, salvo que la canceles antes.',
           'Para cancelar, ve a los ajustes de suscripciones de tu cuenta de App Store o Google Play. La cancelación tiene efecto al final del periodo ya pagado: sigues siendo Pro hasta esa fecha. No podemos cancelarla nosotros por ti — la gestiona la tienda.',
           'Las devoluciones las decide la tienda según su propia política, no nosotros.',
-          'Borrar tu cuenta de ProofIt NO cancela la suscripción. Cancélala primero en la tienda, o seguirá cobrándose.',
+          'Borrar tu cuenta de Prooffit NO cancela la suscripción. Cancélala primero en la tienda, o seguirá cobrándose.',
         ],
       },
       {
@@ -74,7 +74,7 @@ export const termsOfService: LocalizedLegalDocument = {
       {
         heading: '6. Disponibilidad y cambios',
         body: [
-          'Hacemos lo posible por que ProofIt funcione, pero no garantizamos que esté disponible sin interrupciones ni libre de errores.',
+          'Hacemos lo posible por que Prooffit funcione, pero no garantizamos que esté disponible sin interrupciones ni libre de errores.',
           'Podemos cambiar, añadir o retirar funciones. Si retiramos algo que estaba incluido en Pro, te avisaremos con antelación dentro de la app.',
           'Podemos dejar de prestar el servicio. Si eso ocurre, te avisaremos con antelación razonable y no te cobraremos periodos que no vayas a poder usar.',
         ],
@@ -82,7 +82,7 @@ export const termsOfService: LocalizedLegalDocument = {
       {
         heading: '7. Responsabilidad',
         body: [
-          'Usar ProofIt implica moverse. Hazlo con cabeza: mira por dónde andas, no uses el móvil cruzando la calle y no te fuerces más de lo que tu cuerpo aguanta. No respondemos de lesiones ni accidentes derivados de la actividad física que hagas.',
+          'Usar Prooffit implica moverse. Hazlo con cabeza: mira por dónde andas, no uses el móvil cruzando la calle y no te fuerces más de lo que tu cuerpo aguanta. No respondemos de lesiones ni accidentes derivados de la actividad física que hagas.',
           'Salvo en lo que la ley no permita limitar, nuestra responsabilidad se limita al importe que hayas pagado por la suscripción en los doce meses anteriores.',
           'Nada de esto recorta los derechos que te reconoce la normativa de consumo si eres consumidor.',
         ],
@@ -101,13 +101,13 @@ export const termsOfService: LocalizedLegalDocument = {
     title: 'Terms of Use',
     lastUpdated: '2026-09-07',
     intro: [
-      'These are the rules for using ProofIt. You accept them when you create an account. They are deliberately short.',
+      'These are the rules for using Prooffit. You accept them when you create an account. They are deliberately short.',
     ],
     sections: [
       {
-        heading: '1. What ProofIt is',
+        heading: '1. What Prooffit is',
         body: [
-          'ProofIt is a game. It counts the steps your phone records and turns them into progress: levels, duels against your friends and wars between clans.',
+          'Prooffit is a game. It counts the steps your phone records and turns them into progress: levels, duels against your friends and wars between clans.',
           'It is not a medical app or a medical device. It does not measure your health, diagnose anything or replace professional advice. If you are unsure whether you should be exercising more, ask your doctor, not us.',
           'Your phone counts the steps, not us. It can get them wrong: sensors are not perfect and may count too many or too few.',
         ],
@@ -133,12 +133,12 @@ export const termsOfService: LocalizedLegalDocument = {
       {
         heading: '4. Pro subscription',
         body: [
-          'ProofIt is free to use. The Pro subscription is optional and unlocks additional features, described on the purchase screen itself at the time you subscribe.',
+          'Prooffit is free to use. The Pro subscription is optional and unlocks additional features, described on the purchase screen itself at the time you subscribe.',
           'The price and the length of the period are the ones shown on the purchase screen, already in your currency, exactly as the store (App Store or Google Play) provides them.',
           'The subscription renews automatically at the end of each period and you are charged the same amount, unless you cancel first.',
           'To cancel, go to the subscription settings of your App Store or Google Play account. Cancelling takes effect at the end of the period you already paid for: you stay Pro until that date. We cannot cancel it for you — the store manages it.',
           'Refunds are decided by the store under its own policy, not by us.',
-          'Deleting your ProofIt account does NOT cancel the subscription. Cancel it in the store first, or it will keep charging you.',
+          'Deleting your Prooffit account does NOT cancel the subscription. Cancel it in the store first, or it will keep charging you.',
         ],
       },
       {
@@ -152,7 +152,7 @@ export const termsOfService: LocalizedLegalDocument = {
       {
         heading: '6. Availability and changes',
         body: [
-          'We do our best to keep ProofIt running, but we do not guarantee it will be available without interruption or free of bugs.',
+          'We do our best to keep Prooffit running, but we do not guarantee it will be available without interruption or free of bugs.',
           'We may change, add or remove features. If we remove something that was included in Pro, we will tell you in advance inside the app.',
           'We may stop providing the service. If that happens we will give reasonable notice and will not charge you for periods you cannot use.',
         ],
@@ -160,7 +160,7 @@ export const termsOfService: LocalizedLegalDocument = {
       {
         heading: '7. Liability',
         body: [
-          'Using ProofIt means moving. Use your head: watch where you are going, do not use your phone while crossing the street, and do not push your body further than it can go. We are not liable for injuries or accidents arising from the physical activity you do.',
+          'Using Prooffit means moving. Use your head: watch where you are going, do not use your phone while crossing the street, and do not push your body further than it can go. We are not liable for injuries or accidents arising from the physical activity you do.',
           'Except where the law does not allow it to be limited, our liability is capped at the amount you paid for the subscription in the previous twelve months.',
           'None of this cuts into the rights consumer law gives you if you are a consumer.',
         ],

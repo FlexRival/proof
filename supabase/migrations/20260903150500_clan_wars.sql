@@ -1,5 +1,5 @@
 -- ============================================================================
--- MIGRACIÓN: GUERRAS DE CLANES Y RANGO — ProofIt
+-- MIGRACIÓN: GUERRAS DE CLANES Y RANGO — Prooffit
 --
 -- Equivalente de grupo a los duelos 1v1 (`20260903140914_duel_rpcs.sql`):
 --   - request_clan_war()      -> el líder reta a otro clan

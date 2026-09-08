@@ -1,5 +1,5 @@
 -- ============================================================================
--- MIGRACIÓN: CLANES — ProofIt
+-- MIGRACIÓN: CLANES — Prooffit
 --
 -- Capa social sobre profiles/step_logs/duels. Un clan tiene un LÍDER, oficiales
 -- y miembros. La gente pide entrar (el líder / oficiales aceptan) o entra con un

@@ -1,4 +1,4 @@
-# ProofIt — Estructura de la base de datos
+# Prooffit — Estructura de la base de datos
 
 Referencia de la capa de datos (Supabase / Postgres). Léela antes de tocar
 `supabase/migrations/`.

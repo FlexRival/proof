@@ -33,7 +33,7 @@ carpeta cualquiera, es el enrutado de Expo Router. El nombre de cada archivo
 *es* la URL, así que moverlas a `components/pages/` no las reordenaría: las
 borraría del router y dejaría la app sin rutas.
 
-Lo mismo con los *templates*: ProofIt todavía no tiene ninguno. El día que dos
+Lo mismo con los *templates*: Prooffit todavía no tiene ninguno. El día que dos
 pantallas compartan esqueleto, el sitio es `templates/` — un componente que
 recibe las zonas por props o `children` y no sabe nada de datos.
 

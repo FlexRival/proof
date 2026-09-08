@@ -9,9 +9,11 @@ import { MeterBar } from '@/components/atoms/meter-bar';
 import { ThemedText } from '@/components/atoms/themed-text';
 import { ThemedView } from '@/components/atoms/themed-view';
 import { Notice } from '@/components/molecules/notice';
+import { ProfilePhoto } from '@/components/molecules/profile-photo';
 import { SegmentedControl, type SegmentedOption } from '@/components/molecules/segmented-control';
 import { BottomTabInset, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useDuels } from '@/hooks/use-duels';
+import { useProfile } from '@/hooks/use-profile';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/use-translation';
 import { daysRemaining, durationInDays, mostUrgent, standingOf, stepGap } from '@/lib/duel';
@@ -152,7 +154,10 @@ const STANDING_NOTICE = { leading: 'duels.leading', behind: 'duels.behind', tied
  */
 function FeaturedDuelCard({ duel }: { duel: Duel }) {
   const { t } = useTranslation();
+  const { state: profileState } = useProfile();
   const standing = standingOf(duel);
+  // Tu foto sale del perfil, no del duelo: el duelo solo conoce al rival.
+  const yourAvatarUrl = profileState.status === 'ready' ? profileState.data.avatarUrl : null;
 
   return (
     <Card variant="highlight" style={styles.block}>
@@ -168,12 +173,16 @@ function FeaturedDuelCard({ duel }: { duel: Duel }) {
       </View>
 
       <View style={styles.versusRow}>
-        {/* Personajes (KAN-19): reservan el espacio del diseño. */}
-        <Card style={styles.versusCharacter} />
+        {/* Las dos caras del duelo: tu foto y la del rival. */}
+        <ProfilePhoto avatarUrl={yourAvatarUrl} style={styles.versusCharacter} />
         <ThemedText type="smallBold" themeColor="textMuted">
           {t('duels.versus')}
         </ThemedText>
-        <Card variant="rival" style={styles.versusCharacter} />
+        <ProfilePhoto
+          avatarUrl={duel.opponent.avatarUrl}
+          style={styles.versusCharacter}
+          fallbackVariant="rival"
+        />
       </View>
 
       <View style={styles.spread}>
@@ -240,8 +249,12 @@ function DuelRow({ duel }: { duel: Duel }) {
 
   return (
     <Card style={styles.row}>
-      {/* Avatar (KAN-19). */}
-      <Card variant={ahead ? 'default' : 'rival'} style={styles.rowAvatar} />
+      {/* Foto del rival; el hueco se tiñe de Rival si vas por detrás. */}
+      <ProfilePhoto
+        avatarUrl={duel.opponent.avatarUrl}
+        style={styles.rowAvatar}
+        fallbackVariant={ahead ? 'default' : 'rival'}
+      />
 
       <View style={styles.rowBody}>
         <View style={styles.spread}>
@@ -387,8 +400,8 @@ function PendingHead({ duel, note, badge }: { duel: Duel; note: string; badge?: 
 
   return (
     <View style={styles.rowHead}>
-      {/* Avatar (KAN-19). */}
-      <Card style={styles.rowAvatar} />
+      {/* Foto de quien tienes el duelo pendiente. */}
+      <ProfilePhoto avatarUrl={duel.opponent.avatarUrl} style={styles.rowAvatar} />
 
       <View style={styles.rowBody}>
         <ThemedText type="bodyBold">
@@ -436,8 +449,8 @@ function FinishedRow({ duel }: { duel: Duel }) {
   return (
     <Card style={styles.pendingRow}>
       <View style={styles.rowHead}>
-        {/* Avatar (KAN-19). */}
-        <Card style={styles.rowAvatar} />
+        {/* Foto del rival de este duelo ya cerrado. */}
+        <ProfilePhoto avatarUrl={duel.opponent.avatarUrl} style={styles.rowAvatar} />
 
         <View style={styles.rowBody}>
           <ThemedText type="bodyBold">
@@ -491,7 +504,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.three,
   },
-  versusCharacter: { flex: 1, aspectRatio: 0.9 },
+  // El `borderRadius` lo traía `Card`; la foto lo necesita explícito para
+  // recortarse con la misma forma que el hueco al que sustituye.
+  versusCharacter: { flex: 1, aspectRatio: 0.9, borderRadius: Radius.lg },
   versusBar: {
     flexDirection: 'row',
     gap: Spacing.one,
@@ -501,7 +516,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  rowAvatar: { width: AVATAR_SIZE, height: AVATAR_SIZE, padding: 0 },
+  // El `borderRadius` lo traía `Card`; la foto lo necesita explícito para
+  // recortarse con la misma forma que el hueco al que sustituye.
+  rowAvatar: { width: AVATAR_SIZE, height: AVATAR_SIZE, padding: 0, borderRadius: Radius.lg },
   rowBody: { flex: 1, gap: Spacing.two },
   rowHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   pendingRow: { gap: Spacing.three },

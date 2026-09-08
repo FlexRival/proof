@@ -1,5 +1,5 @@
 /**
- * Los textos legales de ProofIt, en un solo sitio.
+ * Los textos legales de Prooffit, en un solo sitio.
  *
  * Viven dentro de la app (y no solo en la web) por tres motivos, y ninguno es
  * opcional:

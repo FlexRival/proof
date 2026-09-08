@@ -8,11 +8,12 @@ import { Card } from '@/components/atoms/card';
 import { Chip } from '@/components/atoms/chip';
 import { EmptyState } from '@/components/organisms/empty-state';
 import { Notice } from '@/components/molecules/notice';
+import { ProfilePhoto } from '@/components/molecules/profile-photo';
 import { SearchField } from '@/components/molecules/search-field';
 import { ThemedText } from '@/components/atoms/themed-text';
 import { ThemedView } from '@/components/atoms/themed-view';
 import { ROUTES } from '@/constants/routes';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useFriendships, type FriendshipsState } from '@/hooks/use-friendships';
 import { useTranslation } from '@/hooks/use-translation';
 import { RepositoryError, type Friend, type FriendRequest } from '@/repositories';
@@ -221,8 +222,8 @@ function RequestRow({ request, busy, onRespond }: RequestRowProps) {
 
   return (
     <Card style={styles.row}>
-      {/* Avatar (KAN-19). */}
-      <Card variant="sunken" style={styles.avatar} />
+      {/* Foto de quien te mandó la solicitud. */}
+      <ProfilePhoto avatarUrl={request.avatarUrl} style={styles.avatar} fallbackVariant="sunken" />
 
       <View style={styles.rowBody}>
         <ThemedText type="bodyBold">{request.username}</ThemedText>
@@ -247,8 +248,8 @@ function FriendRow({ friend }: { friend: Friend }) {
 
   return (
     <Card style={styles.row}>
-      {/* Avatar (KAN-19). */}
-      <Card variant="sunken" style={styles.avatar} />
+      {/* Foto del amigo. */}
+      <ProfilePhoto avatarUrl={friend.avatarUrl} style={styles.avatar} fallbackVariant="sunken" />
 
       {/*
         Solo el cuerpo abre el perfil, no la card entera: si la fila completa
@@ -307,7 +308,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.two,
   },
-  avatar: { width: AVATAR_SIZE, height: AVATAR_SIZE, padding: 0 },
+  // El `borderRadius` lo traía `Card`; la foto lo necesita explícito para
+  // recortarse con la misma forma que el hueco al que sustituye.
+  avatar: { width: AVATAR_SIZE, height: AVATAR_SIZE, padding: 0, borderRadius: Radius.lg },
   rowBody: { flex: 1, gap: Spacing.one },
   empty: { textAlign: 'center', paddingVertical: Spacing.four },
   versus: {

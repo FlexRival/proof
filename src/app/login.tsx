@@ -95,7 +95,7 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled">
           <View style={styles.brand}>
             <ThemedText type="title" style={styles.centered}>
-              PROOFIT
+              PROOFFIT
             </ThemedText>
             <ThemedText type="small" themeColor="textMuted" style={styles.centered}>
               {t('login.tagline')}

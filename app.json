@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "proof",
-    "slug": "proof",
+    "name": "Prooffit",
+    "slug": "prooffit",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -37,7 +37,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "ProofIt needs access to your photos so you can set a profile picture."
+          "photosPermission": "Prooffit needs access to your photos so you can set a profile picture."
         }
       ],
       "expo-localization",
@@ -45,7 +45,7 @@
       [
         "expo-sensors",
         {
-          "motionPermission": "ProofIt counts your daily steps to level you up and settle your duels."
+          "motionPermission": "Prooffit counts your daily steps to level you up and settle your duels."
         }
       ],
       [

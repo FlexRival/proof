@@ -10,7 +10,7 @@
  *
  * Las variables se escriben `%{nombre}` (formato de i18n-js).
  *
- * **PROOFIT no está aquí**: es la marca, y una marca no se traduce.
+ * **PROOFFIT no está aquí**: es la marca, y una marca no se traduce.
  */
 export const en = {
   common: {

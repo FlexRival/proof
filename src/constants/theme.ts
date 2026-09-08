@@ -1,5 +1,5 @@
 /**
- * Punto de entrada del sistema de diseño de ProofIt.
+ * Punto de entrada del sistema de diseño de Prooffit.
  *
  * Los componentes importan de aquí. La capa interna es `colors.ts`: rampas y
  * tokens semánticos, sin dependencias, para poder validarlo con Node.

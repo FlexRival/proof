@@ -10,7 +10,7 @@ Fecha de la investigación: 2026-09-03. Sigue sin haber código de pasos.
 
 ## Lo que las dos tienen que darnos
 
-Da igual la plataforma, ProofIt necesita lo mismo:
+Da igual la plataforma, Prooffit necesita lo mismo:
 
 ```ts
 readDailySteps(desde: string, hasta: string): Promise<DailySteps[]>
@@ -34,7 +34,7 @@ Tres cosas, y sin ellas la app ni arranca ni pasa revisión:
 | `Info.plist` | `NSHealthShareUsageDescription` — por qué **lees** datos |
 | `Info.plist` | `NSHealthUpdateUsageDescription` — solo si además **escribes** |
 
-ProofIt solo lee pasos, así que la tercera en principio no hace falta. El texto
+Prooffit solo lee pasos, así que la tercera en principio no hace falta. El texto
 de la segunda lo lee el usuario en el diálogo del sistema: hay que escribirlo
 bien, no poner «para que la app funcione».
 
@@ -52,7 +52,7 @@ Y la consecuencia es peor de lo que parece:
 > muestras, sin error. La app no puede distinguir «no me dejas leer» de «hoy no
 > has andado».
 
-**Qué significa para ProofIt:** alguien que deniegue el permiso aparecerá con 0
+**Qué significa para Prooffit:** alguien que deniegue el permiso aparecerá con 0
 pasos, perderá todos los duelos, y no hay forma programática de decirle por qué.
 Se resuelve por diseño, no por código:
 
@@ -125,7 +125,7 @@ Bastante más ceremonia que en iOS:
 
 > **Ojo:** esa política de privacidad tiene que ser **la misma** que se declare
 > en Play Console. **Nadie tiene asignada la tarea de escribir una política de
-> privacidad para ProofIt**, y sin ella no se puede publicar con Health Connect.
+> privacidad para Prooffit**, y sin ella no se puede publicar con Health Connect.
 
 ### Trampa nº 3: solo 30 días de histórico, y leer más antiguo da error
 
@@ -136,7 +136,7 @@ ese momento. Para ir más atrás hace falta el permiso adicional
 Y lo importante: **leer fuera de la ventana no devuelve vacío, devuelve error**.
 Al revés que en iOS, aquí sí te enteras — pero hay que manejarlo.
 
-**Para ProofIt la noticia es buena:** los duelos duran de 1 a 30 días según el
+**Para Prooffit la noticia es buena:** los duelos duran de 1 a 30 días según el
 esquema, así que la ventana por defecto cubre el caso normal de 7 días sin pedir
 nada extra. Solo un duelo de 30 días rozaría el límite.
 

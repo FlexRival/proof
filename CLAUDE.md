@@ -1,9 +1,9 @@
 @AGENTS.md
 
-# ProofIt — Contexto del Proyecto
+# Prooffit — Contexto del Proyecto
 
 ## Visión General
-ProofIt es una app RPG móvil desarrollada con Expo (React Native) donde los pasos reales diarios del usuario suben de nivel a su personaje y le permiten retar a sus amigos en duelos 1v1 basados en su actividad física real.
+Prooffit es una app RPG móvil desarrollada con Expo (React Native) donde los pasos reales diarios del usuario suben de nivel a su personaje y le permiten retar a sus amigos en duelos 1v1 basados en su actividad física real.
 
 ## Core Loop & Funcionalidades Principales
 - **Conteo de Pasos & XP:** Tracking de pasos diarios (mediante Podómetro / sensores del dispositivo) convertidos automáticamente en XP para subir de nivel al personaje.

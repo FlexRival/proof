@@ -13,6 +13,7 @@ import { BottomTabInset, MaxContentWidth, Radius, Spacing } from '@/constants/th
 import { useProfile } from '@/hooks/use-profile';
 import { useTranslation } from '@/hooks/use-translation';
 import { useDuels } from '@/hooks/use-duels';
+import { useSteps } from '@/hooks/use-steps';
 import { formatCompact, formatCount } from '@/lib/format';
 import { levelProgress } from '@/lib/xp';
 
@@ -47,6 +48,7 @@ import { levelProgress } from '@/lib/xp';
 export default function ProfileScreen() {
   const { state: profileState } = useProfile();
   const { state: duelsState } = useDuels();
+  const { state: stepsState } = useSteps();
   const { t } = useTranslation();
 
   const finished = duelsState.status === 'ready' ? duelsState.data.finished : [];
@@ -60,9 +62,10 @@ export default function ProfileScreen() {
   const decided = wins + losses;
   const winRate = decided > 0 ? Math.round((wins / decided) * 100) : 0;
 
-  // Sin agregación de `step_logs` en el servidor no hay de dónde sacarlo; ver
-  // el comentario de arriba.
-  const totalSteps = 0;
+  // Lo suma el servidor (`total_steps()`): el historico crece sin techo y no
+  // tiene sentido traerselo entero para sumarlo aqui. Mientras carga se
+  // ensena 0, que es lo que el diseno reserva en ese hueco.
+  const totalSteps = stepsState.status === 'ready' ? stepsState.data.total : 0;
 
   if (profileState.status !== 'ready') {
     // El guard de sesión de `_layout.tsx` ya garantiza que llegar aquí implica

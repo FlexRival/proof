@@ -1,5 +1,5 @@
 -- ============================================================================
--- MIGRACIÓN: LÍMITE DE DUELOS DE LA VERSIÓN GRATUITA — ProofIt
+-- MIGRACIÓN: LÍMITE DE DUELOS DE LA VERSIÓN GRATUITA — Prooffit
 --
 -- Primera puerta de pago del proyecto (ver SCHEMA.md §15 y §6):
 --   - Un usuario GRATIS (`profiles.is_pro = false`) solo puede CREAR un número

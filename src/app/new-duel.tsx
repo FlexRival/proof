@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/atoms/button';
 import { Card } from '@/components/atoms/card';
 import { Notice } from '@/components/molecules/notice';
+import { ProfilePhoto } from '@/components/molecules/profile-photo';
 import { SearchField } from '@/components/molecules/search-field';
 import { ThemedText } from '@/components/atoms/themed-text';
 import { ThemedView } from '@/components/atoms/themed-view';
@@ -313,8 +314,8 @@ function FriendOption({ friend, selected, onSelect }: FriendOptionProps) {
   return (
     <Pressable accessibilityRole="radio" accessibilityState={{ selected }} onPress={onSelect}>
       <Card variant={selected ? 'highlight' : 'default'} style={styles.option}>
-        {/* Avatar (KAN-19). */}
-        <Card variant="sunken" style={styles.avatar} />
+        {/* Foto del amigo al que puedes retar. */}
+        <ProfilePhoto avatarUrl={friend.avatarUrl} style={styles.avatar} fallbackVariant="sunken" />
 
         <View style={styles.optionBody}>
           <ThemedText type="bodyBold">{friend.username}</ThemedText>
@@ -348,8 +349,8 @@ function SetDuelStep({ opponent, duration, onChangeDuration, onChangeOpponent }:
       <ThemedText type="title">SET THE DUEL</ThemedText>
 
       <Card style={styles.option}>
-        {/* Avatar (KAN-19). */}
-        <Card variant="rival" style={styles.avatar} />
+        {/* Foto del rival elegido. */}
+        <ProfilePhoto avatarUrl={opponent.avatarUrl} style={styles.avatar} fallbackVariant="rival" />
 
         <View style={styles.optionBody}>
           <ThemedText type="bodyBold">{opponent.username}</ThemedText>
@@ -528,7 +529,9 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   optionBody: { flex: 1, gap: Spacing.one },
-  avatar: { width: AVATAR_SIZE, height: AVATAR_SIZE, padding: 0 },
+  // El `borderRadius` lo traía `Card`; la foto lo necesita explícito para
+  // recortarse con la misma forma que el hueco al que sustituye.
+  avatar: { width: AVATAR_SIZE, height: AVATAR_SIZE, padding: 0, borderRadius: Radius.lg },
   check: {
     width: CHECK_SIZE,
     height: CHECK_SIZE,

@@ -1,4 +1,4 @@
-# Sistema de diseño de ProofIt
+# Sistema de diseño de Prooffit
 
 Referencia autoritativa del lenguaje visual de la app: paleta, tokens
 semánticos y las reglas para usarlos. Es la contraparte legible de
@@ -29,7 +29,7 @@ hueco a ojo.
 
 ## Decisión: tema único, oscuro
 
-ProofIt no tiene modo claro. `Colors` es un solo objeto (con la clave
+Prooffit no tiene modo claro. `Colors` es un solo objeto (con la clave
 `dark` conservada por compatibilidad con `check-contrast.mjs`, que itera
 `Object.entries(Colors)`; no implica que vaya a haber una clave `light`).
 Si algún día se añade un tema claro, es ampliar esa clave, no rediseñar el

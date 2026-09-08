@@ -5,11 +5,11 @@ description: >-
   components, screens, styles, native chrome in app.json — or whenever a
   message changes a visual/design decision (a color, a spacing rule, a new
   role like "racha" or "info"). Enforces that every color comes from the
-  ProofIt design system instead of a hardcoded literal, and that
+  Prooffit design system instead of a hardcoded literal, and that
   docs/design.md is updated to match, not just src/constants/colors.ts.
 ---
 
-# Sistema de diseño de ProofIt
+# Sistema de diseño de Prooffit
 
 Dos archivos son la fuente de verdad, y **tienen que decir lo mismo
 siempre**:
@@ -80,7 +80,7 @@ lo que pide `AGENTS.md` y hay que actualizarla, no añadir flags al script.
 
 ## Decisión vigente: tema único, oscuro
 
-ProofIt no tiene modo claro (`Colors` es un solo objeto, sin
+Prooffit no tiene modo claro (`Colors` es un solo objeto, sin
 `Colors.light`). No reintroduzcas branching de `useColorScheme()` para
 elegir colores de la app a menos que el usuario pida explícitamente volver
 a un tema claro — ver `docs/design.md` § Decisión: tema único, oscuro.

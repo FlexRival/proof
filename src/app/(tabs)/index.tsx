@@ -9,10 +9,17 @@ import { MeterBar, type MeterTone } from '@/components/atoms/meter-bar';
 import { ThemedText } from '@/components/atoms/themed-text';
 import { ThemedView } from '@/components/atoms/themed-view';
 import { Notice } from '@/components/molecules/notice';
+import { ProfilePhoto } from '@/components/molecules/profile-photo';
 import { EmptyState } from '@/components/organisms/empty-state';
 import { XpProgress } from '@/components/organisms/xp-progress';
 import { ROUTES } from '@/constants/routes';
-import { BottomTabInset, MaxContentWidth, Spacing, type ThemeColor } from '@/constants/theme';
+import {
+  BottomTabInset,
+  MaxContentWidth,
+  Radius,
+  Spacing,
+  type ThemeColor,
+} from '@/constants/theme';
 import { useDuels } from '@/hooks/use-duels';
 import { useProfile } from '@/hooks/use-profile';
 import { useSteps, type StepsSummary } from '@/hooks/use-steps';
@@ -54,7 +61,7 @@ export default function HomeScreen() {
     return <ThemedView style={styles.screen} />;
   }
 
-  const { username, xp } = profileState.data;
+  const { username, xp, avatarUrl } = profileState.data;
   const { level, xpIntoLevel, xpForNextLevel } = levelProgress(xp);
 
   const steps = stepsState.status === 'ready' ? stepsState.data : null;
@@ -65,8 +72,9 @@ export default function HomeScreen() {
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            {/* Avatar (KAN-19). */}
-            <Card style={styles.avatar} />
+            {/* La foto de la cuenta, igual que en Perfil y Ajustes (KAN-64).
+                No es el hueco del personaje descartado: eso es `character`. */}
+            <ProfilePhoto avatarUrl={avatarUrl} style={styles.avatar} />
 
             <View style={styles.identity}>
               <ThemedText type="bodyBold">{username}</ThemedText>
@@ -77,8 +85,8 @@ export default function HomeScreen() {
 
           {duel ? (
             <>
-              {/* Personaje (KAN-19): reserva el espacio del diseño. */}
-              <Card style={styles.character} />
+              {/* Tu foto, en grande, igual que en Perfil. */}
+              <ProfilePhoto avatarUrl={avatarUrl} style={styles.character} />
 
               <ThemedText type="heading" style={styles.level}>
                 {t('common.level', { level })}
@@ -88,7 +96,7 @@ export default function HomeScreen() {
 
               <StepsCard steps={steps} onConnect={requestAccess} />
 
-              <CurrentDuelCard duel={duel} username={username} />
+              <CurrentDuelCard duel={duel} username={username} avatarUrl={avatarUrl} />
 
               <Button
                 label={t('home.challengeAFriend')}
@@ -97,7 +105,7 @@ export default function HomeScreen() {
               />
             </>
           ) : (
-            <NoDuelState steps={steps} onConnect={requestAccess} />
+            <NoDuelState steps={steps} onConnect={requestAccess} avatarUrl={avatarUrl} />
           )}
         </ScrollView>
       </SafeAreaView>
@@ -185,7 +193,16 @@ function StepsAccessCard({
  * El duelo en curso más urgente. El botón lleva a la pestaña de Duelos, que es
  * donde está el detalle: no hay pantalla de un duelo suelto (KAN-28).
  */
-function CurrentDuelCard({ duel, username }: { duel: Duel; username: string }) {
+function CurrentDuelCard({
+  duel,
+  username,
+  avatarUrl,
+}: {
+  duel: Duel;
+  username: string;
+  /** La tuya. La del rival viaja dentro del propio duelo. */
+  avatarUrl: string | null;
+}) {
   const { t } = useTranslation();
   const days = daysRemaining(duel.endDate);
   // Las dos barras se miden contra quien va ganando, para que la del líder
@@ -203,9 +220,16 @@ function CurrentDuelCard({ duel, username }: { duel: Duel; username: string }) {
         </ThemedText>
       </View>
 
-      <DuelSideRow name={username} steps={duel.yourSteps} tone="power" leader={leader} />
+      <DuelSideRow
+        name={username}
+        avatarUrl={avatarUrl}
+        steps={duel.yourSteps}
+        tone="power"
+        leader={leader}
+      />
       <DuelSideRow
         name={duel.opponent.username}
+        avatarUrl={duel.opponent.avatarUrl}
         steps={duel.theirSteps}
         tone="rival"
         leader={leader}
@@ -223,7 +247,15 @@ function CurrentDuelCard({ duel, username }: { duel: Duel; username: string }) {
  * compacta que explica para qué sirven: sin duelo no se gana XP, así que
  * enseñar la barra de XP aquí sería enseñar algo que no se mueve.
  */
-function NoDuelState({ steps, onConnect }: { steps: StepsSummary | null; onConnect: ConnectFn }) {
+function NoDuelState({
+  steps,
+  onConnect,
+  avatarUrl,
+}: {
+  steps: StepsSummary | null;
+  onConnect: ConnectFn;
+  avatarUrl: string | null;
+}) {
   const { t } = useTranslation();
 
   return (
@@ -233,8 +265,8 @@ function NoDuelState({ steps, onConnect }: { steps: StepsSummary | null; onConne
         message={t('home.emptyMessage')}
         actionLabel={t('home.challengeAFriend')}
         onAction={() => router.push(ROUTES.newDuel.href)}>
-        {/* Personaje inactivo (KAN-19): reserva el espacio del diseño. */}
-        <Card variant="sunken" style={styles.idleCharacter} />
+        {/* Tu foto. Sin duelo manda en la pantalla, así que va más grande. */}
+        <ProfilePhoto avatarUrl={avatarUrl} style={styles.idleCharacter} fallbackVariant="sunken" />
       </EmptyState>
 
       {/*
@@ -271,17 +303,18 @@ const SIDE_COUNT_COLOR: Record<Extract<MeterTone, 'power' | 'rival'>, ThemeColor
 
 type DuelSideRowProps = {
   name: string;
+  avatarUrl: string | null;
   steps: number;
   tone: Extract<MeterTone, 'power' | 'rival'>;
   /** Pasos de quien va ganando: el denominador de las dos barras. */
   leader: number;
 };
 
-function DuelSideRow({ name, steps, tone, leader }: DuelSideRowProps) {
+function DuelSideRow({ name, avatarUrl, steps, tone, leader }: DuelSideRowProps) {
   return (
     <View style={styles.duelRow}>
-      {/* Avatar (KAN-19). */}
-      <Card style={styles.duelAvatar} />
+      {/* La foto de cada lado del duelo. */}
+      <ProfilePhoto avatarUrl={avatarUrl} style={styles.duelAvatar} />
 
       <View style={styles.duelBody}>
         <View style={styles.spread}>
@@ -325,24 +358,30 @@ const styles = StyleSheet.create({
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
     padding: 0,
+    // Lo traía `Card` por su cuenta; la foto lo necesita explícito para
+    // recortarse con la misma forma que el hueco al que sustituye.
+    borderRadius: Radius.lg,
   },
   identity: {
     flex: 1,
     gap: Spacing.one,
   },
   character: {
-    // Medido en el diseño: el recuadro del personaje ocupa la mitad del ancho
-    // del contenido y va centrado, no a sangre.
+    // Medido en el diseño: el recuadro ocupa la mitad del ancho del contenido
+    // y va centrado, no a sangre.
     width: '50%',
     alignSelf: 'center',
     aspectRatio: 1,
+    // El `borderRadius` lo traía `Card`; la foto lo necesita explícito.
+    borderRadius: Radius.lg,
   },
   idleCharacter: {
-    // Sin duelo el personaje manda en la pantalla: en el diseño es más alto que
-    // ancho y ocupa más que el de la pantalla con duelo.
+    // Sin duelo la foto manda en la pantalla: en el diseño es más alta que
+    // ancha y ocupa más que la de la pantalla con duelo.
     width: '60%',
     alignSelf: 'center',
     aspectRatio: 0.82,
+    borderRadius: Radius.lg,
   },
   idleSteps: {
     flexDirection: 'row',
@@ -376,6 +415,9 @@ const styles = StyleSheet.create({
     width: DUEL_AVATAR_SIZE,
     height: DUEL_AVATAR_SIZE,
     padding: 0,
+    // Lo traía `Card` por su cuenta; la foto lo necesita explícito para
+    // recortarse con la misma forma que el hueco al que sustituye.
+    borderRadius: Radius.lg,
   },
   duelBody: {
     flex: 1,

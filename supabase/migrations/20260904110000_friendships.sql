@@ -1,5 +1,5 @@
 -- ============================================================================
--- MIGRACIÓN: AMISTADES — ProofIt
+-- MIGRACIÓN: AMISTADES — Prooffit
 --
 -- Relación bidireccional entre dos profiles: solicitud → aceptar/rechazar →
 -- amistad activa. Sirve de base para "duelos contra amigos" (ver CLAUDE.md).

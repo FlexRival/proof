@@ -40,6 +40,14 @@ export type StepsSummary = {
   goal: number;
   /** `true` si el servidor recortó los pasos de hoy por el tope diario. */
   capped: boolean;
+  /**
+   * Todos los pasos guardados del usuario, sumados por el servidor.
+   *
+   * A diferencia de `today`, no depende del permiso del teléfono: son los que
+   * ya están en `step_logs`, y el histórico existe aunque hoy no se pueda leer
+   * el podómetro. Por eso se pide también cuando `access` no es `granted`.
+   */
+  total: number;
 };
 
 export type StepsState = AsyncState<StepsSummary>;
@@ -55,10 +63,14 @@ export type StepsState = AsyncState<StepsSummary>;
  * y hoy podría no estar entre ellos.
  */
 async function loadSteps(): Promise<StepsSummary> {
-  const [access, goal] = await Promise.all([getStepsAccess(), stepsRepository.getDailyStepGoal()]);
+  const [access, goal, total] = await Promise.all([
+    getStepsAccess(),
+    stepsRepository.getDailyStepGoal(),
+    stepsRepository.getTotalSteps(),
+  ]);
 
   if (access.status !== 'granted') {
-    return { access, today: null, goal, capped: false };
+    return { access, today: null, goal, capped: false, total };
   }
 
   const from = daysAgoKey(SYNC_WINDOW_DAYS);
@@ -69,7 +81,15 @@ async function loadSteps(): Promise<StepsSummary> {
   const stored = await stepsRepository.getStoredSteps(from, to);
   const today = stored.find((day) => day.date === to);
 
-  return { access, today: today?.storedSteps ?? 0, goal, capped: today?.capped ?? false };
+  // El total se vuelve a pedir después de sincronizar: la subida acaba de
+  // añadir los días que faltaban, y el que se leyó al principio ya está viejo.
+  return {
+    access,
+    today: today?.storedSteps ?? 0,
+    goal,
+    capped: today?.capped ?? false,
+    total: await stepsRepository.getTotalSteps(),
+  };
 }
 
 async function fetchStepsState(): Promise<StepsState> {

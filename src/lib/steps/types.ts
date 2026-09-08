@@ -37,7 +37,7 @@ export type DailySteps = {
  * iOS un permiso de lectura **denegado devuelve exactamente lo mismo que "has
  * andado 0 pasos"**. Preguntando a la plataforma no se distinguen. Si la app
  * no guarda por su cuenta en qué estado está el permiso, el usuario que dijo
- * que no ve un cero, cree que ProofIt está roto, y se va.
+ * que no ve un cero, cree que Prooffit está roto, y se va.
  *
  * Por eso el lector devuelve el estado explícito en vez de un array vacío que
  * signifique dos cosas distintas.

@@ -68,7 +68,7 @@ Están enganchados en tres sitios, y los tres son exigencias de tienda:
 - Ajustes → Cuenta → Política de privacidad / Términos de uso.
 - Pie del paywall (Apple no aprueba una suscripción sin estos dos enlaces).
 - **Android, desde fuera de la app:** el diálogo de permisos de Health Connect
-  tiene un enlace de privacidad que abre ProofIt con el intent
+  tiene un enlace de privacidad que abre Prooffit con el intent
   `androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE`. El plugin de
   `react-native-health-connect` ya escribe ese intent-filter en el manifiesto,
   apuntando a la MainActivity.
@@ -113,7 +113,7 @@ de 12 testers de KAN-46**, que es el camino crítico hacia el 30 de septiembre.
 | --- | --- |
 | ¿Ofrece funciones de salud? | Sí |
 | Categoría | Fitness / bienestar. **No** es producto sanitario |
-| Caso de uso | «Juego con mecánicas basadas en fitness» — está en la lista de casos aprobados, y es literalmente lo que es ProofIt |
+| Caso de uso | «Juego con mecánicas basadas en fitness» — está en la lista de casos aprobados, y es literalmente lo que es Prooffit |
 | Tipos de dato de Health Connect | **Solo `READ_STEPS`.** Nada más |
 | Justificación | Los pasos diarios del usuario son la puntuación de duelos 1v1 y guerras de clanes, y lo que da XP. Sin ellos el juego no tiene mecánica |
 
@@ -138,7 +138,7 @@ sin actualizar este formulario y la política a la vez.
 - Uso: funcionalidad de la app. **Ni seguimiento, ni publicidad, ni analítica de
   terceros** — marcar «no se usa para seguimiento».
 - Las reglas de HealthKit prohíben usar datos de salud para publicidad
-  segmentada o cederlos a redes publicitarias. ProofIt no tiene anuncios, así
+  segmentada o cederlos a redes publicitarias. Prooffit no tiene anuncios, así
   que hoy no hay conflicto; **si algún día entran anuncios, esto se rompe.**
 
 #### d) Cadenas de permiso en `app.json`

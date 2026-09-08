@@ -73,4 +73,13 @@ export interface StepsRepository {
    * `6000`), así que cambiarla no puede exigir publicar una versión de la app.
    */
   getDailyStepGoal(): Promise<number>;
+
+  /**
+   * Todos los pasos que el servidor tiene guardados del usuario, sumados.
+   *
+   * Lo suma el servidor y no la app a propósito: el histórico crece sin techo
+   * con cada día jugado, y traérselo entero para sumarlo en el cliente gastaría
+   * una petición cada vez mayor para acabar enseñando un solo número.
+   */
+  getTotalSteps(): Promise<number>;
 }

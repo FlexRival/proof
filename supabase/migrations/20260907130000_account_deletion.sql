@@ -1,11 +1,11 @@
 -- ============================================================================
--- MIGRACIÓN: BORRADO DE CUENTA — ProofIt (KAN-53)
+-- MIGRACIÓN: BORRADO DE CUENTA — Prooffit (KAN-53)
 --
 -- POR QUÉ EXISTE:
 --   App Store Review Guideline 5.1.1(v): toda app que deja CREAR una cuenta
 --   tiene que dejar BORRARLA desde dentro de la app. No vale desactivarla ni
 --   un «escríbenos un correo». Google Play pide lo mismo, y además una ruta
---   web para pedirlo sin instalar la app. ProofIt tiene registro por
+--   web para pedirlo sin instalar la app. Prooffit tiene registro por
 --   email/contraseña, así que aplica de lleno: sin esto, rechazo seguro.
 --
 -- QUIÉN BORRA QUÉ (y por qué esta función NO borra casi nada):

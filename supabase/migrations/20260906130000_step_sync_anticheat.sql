@@ -1,5 +1,5 @@
 -- ============================================================================
--- MIGRACIÓN: ANTI-CHEAT DE step_logs — ProofIt (KAN-52)
+-- MIGRACIÓN: ANTI-CHEAT DE step_logs — Prooffit (KAN-52)
 --
 -- EL AGUJERO QUE CIERRA (ver docs/conteo-de-pasos.md §6):
 --   `step_logs.steps_count` es el marcador que decide los duelos y las guerras

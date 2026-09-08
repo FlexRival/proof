@@ -304,6 +304,8 @@ export type Database = {
       // ---- Pasos (`20260906130000_step_sync_anticheat.sql`) ----
       /** Tope diario que aplica el servidor antes de guardar. */
       daily_step_cap: { Args: Record<never, never>; Returns: number };
+      /** Suma de todos los pasos guardados del usuario de la sesion. */
+      total_steps: { Args: Record<never, never>; Returns: number };
       /** Cuántos días hacia atrás se puede sincronizar. */
       step_sync_backfill_days: { Args: Record<never, never>; Returns: number };
       sync_daily_steps: {

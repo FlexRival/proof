@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/atoms/button';
 import { Card } from '@/components/atoms/card';
 import { Chip } from '@/components/atoms/chip';
+import { ProfilePhoto } from '@/components/molecules/profile-photo';
 import { StatTile } from '@/components/molecules/stat-tile';
 import { ThemedText } from '@/components/atoms/themed-text';
 import { ThemedView } from '@/components/atoms/themed-view';
@@ -73,10 +74,14 @@ export default function FriendProfileScreen() {
           </View>
 
           {/*
-            Personaje del amigo (KAN-19): reserva el espacio del diseño. Va en
-            Rival porque en esta pantalla el amigo es el oponente, no tú.
+            La foto del amigo, igual que Perfil enseña la tuya. El hueco, si no
+            subió ninguna, va en Rival: aquí el amigo es el oponente, no tú.
           */}
-          <Card variant="rival" style={styles.character} />
+          <ProfilePhoto
+            avatarUrl={friend.avatarUrl}
+            style={styles.character}
+            fallbackVariant="rival"
+          />
 
           <View style={styles.identity}>
             <ThemedText type="subtitle">{friend.username}</ThemedText>
@@ -226,6 +231,9 @@ const styles = StyleSheet.create({
   character: {
     width: '100%',
     aspectRatio: 1,
+    // Lo traía `Card` por su cuenta; la foto lo necesita explícito para
+    // recortarse con la misma forma que el hueco al que sustituye.
+    borderRadius: Radius.lg,
   },
   identity: {
     alignItems: 'center',
