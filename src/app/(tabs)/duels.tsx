@@ -8,6 +8,7 @@ import { Card } from '@/components/atoms/card';
 import { MeterBar } from '@/components/atoms/meter-bar';
 import { ThemedText } from '@/components/atoms/themed-text';
 import { ThemedView } from '@/components/atoms/themed-view';
+import { FrameOverlay } from '@/components/molecules/frame-overlay';
 import { Notice } from '@/components/molecules/notice';
 import { ProfilePhoto } from '@/components/molecules/profile-photo';
 import { SegmentedControl, type SegmentedOption } from '@/components/molecules/segmented-control';
@@ -18,6 +19,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/use-translation';
 import { daysRemaining, durationInDays, mostUrgent, standingOf, stepGap } from '@/lib/duel';
 import { formatCount } from '@/lib/format';
+import { frameById, type FrameMeta } from '@/lib/frames';
 import type { Duel, Duels } from '@/repositories';
 
 /**
@@ -64,6 +66,9 @@ export default function DuelsScreen() {
   const [filter, setFilter] = useState<DuelFilter>('active');
   const { t } = useTranslation();
   const { state, respond } = useDuels();
+  const { state: profileState } = useProfile();
+  const avatarUrl = profileState.status === 'ready' ? profileState.data.avatarUrl : null;
+  const frame = profileState.status === 'ready' ? frameById(profileState.data.equippedFrameId) : null;
 
   return (
     <ThemedView style={styles.screen}>
@@ -81,7 +86,13 @@ export default function DuelsScreen() {
           {state.status === 'error' ? <Notice message={state.message} tone="rival" /> : null}
 
           {state.status === 'ready' ? (
-            <DuelLists filter={filter} duels={state.data} onRespond={respond} />
+            <DuelLists
+              filter={filter}
+              duels={state.data}
+              onRespond={respond}
+              avatarUrl={avatarUrl}
+              frame={frame}
+            />
           ) : null}
         </ScrollView>
       </SafeAreaView>
@@ -103,14 +114,20 @@ function DuelLists({
   filter,
   duels,
   onRespond,
+  avatarUrl,
+  frame,
 }: {
   filter: DuelFilter;
   duels: Duels;
   onRespond: RespondFn;
+  avatarUrl: string | null;
+  frame: FrameMeta | null;
 }) {
   return (
     <>
-      {filter === 'active' ? <ActiveDuels duels={duels.active} /> : null}
+      {filter === 'active' ? (
+        <ActiveDuels duels={duels.active} avatarUrl={avatarUrl} frame={frame} />
+      ) : null}
       {filter === 'pending' ? (
         <PendingDuels incoming={duels.incoming} outgoing={duels.outgoing} onRespond={onRespond} />
       ) : null}
@@ -119,7 +136,15 @@ function DuelLists({
   );
 }
 
-function ActiveDuels({ duels }: { duels: Duel[] }) {
+function ActiveDuels({
+  duels,
+  avatarUrl,
+  frame,
+}: {
+  duels: Duel[];
+  avatarUrl: string | null;
+  frame: FrameMeta | null;
+}) {
   const { t } = useTranslation();
   const featured = mostUrgent(duels);
 
@@ -129,7 +154,7 @@ function ActiveDuels({ duels }: { duels: Duel[] }) {
 
   return (
     <>
-      <FeaturedDuelCard duel={featured} />
+      <FeaturedDuelCard duel={featured} avatarUrl={avatarUrl} frame={frame} />
 
       {duels
         .filter((duel) => duel.id !== featured.id)
@@ -152,12 +177,17 @@ const STANDING_NOTICE = { leading: 'duels.leading', behind: 'duels.behind', tied
  * lleva a ningún sitio se lee como un fallo, así que no se pinta hasta que
  * exista el destino.
  */
-function FeaturedDuelCard({ duel }: { duel: Duel }) {
+function FeaturedDuelCard({
+  duel,
+  avatarUrl,
+  frame,
+}: {
+  duel: Duel;
+  avatarUrl: string | null;
+  frame: FrameMeta | null;
+}) {
   const { t } = useTranslation();
-  const { state: profileState } = useProfile();
   const standing = standingOf(duel);
-  // Tu foto sale del perfil, no del duelo: el duelo solo conoce al rival.
-  const yourAvatarUrl = profileState.status === 'ready' ? profileState.data.avatarUrl : null;
 
   return (
     <Card variant="highlight" style={styles.block}>
@@ -173,8 +203,8 @@ function FeaturedDuelCard({ duel }: { duel: Duel }) {
       </View>
 
       <View style={styles.versusRow}>
-        {/* Las dos caras del duelo: tu foto y la del rival. */}
-        <ProfilePhoto avatarUrl={yourAvatarUrl} style={styles.versusCharacter} />
+        {/* Las dos caras del duelo: tu foto (con su marco) y la del rival. */}
+        <FrameOverlay frame={frame} avatarUrl={avatarUrl} style={styles.versusCharacter} />
         <ThemedText type="smallBold" themeColor="textMuted">
           {t('duels.versus')}
         </ThemedText>
@@ -505,8 +535,10 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   // El `borderRadius` lo traía `Card`; la foto lo necesita explícito para
-  // recortarse con la misma forma que el hueco al que sustituye.
-  versusCharacter: { flex: 1, aspectRatio: 0.9, borderRadius: Radius.lg },
+  // recortarse con la misma forma que el hueco al que sustituye. Cuadrado
+  // (`aspectRatio: 1`): la foto de perfil siempre lo es, y una caja más
+  // estrecha obligaba a `cover` a recortarle los lados.
+  versusCharacter: { flex: 1, aspectRatio: 1, borderRadius: Radius.lg },
   versusBar: {
     flexDirection: 'row',
     gap: Spacing.one,

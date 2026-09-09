@@ -11,6 +11,8 @@ import type { PickedImage, Profile, ProfileRepository } from '@/repositories/pro
  */
 export class CachedProfileRepository implements ProfileRepository {
   private readonly cache: RepositoryCache<Profile | null>;
+  /** Quien escucha `onProfileChange` — pantallas ya montadas con su propio `useProfile()`. */
+  private readonly changeListeners = new Set<() => void>();
 
   constructor(
     private readonly inner: ProfileRepository,
@@ -27,7 +29,13 @@ export class CachedProfileRepository implements ProfileRepository {
      * Si esto se moviera a un sitio que se suscribe más tarde (p. ej. dentro
      * de un hook), esa garantía de orden desaparece.
      */
-    this.inner.onSessionChange(() => this.cache.invalidate());
+    this.inner.onSessionChange(() => this.invalidateAndNotify());
+  }
+
+  /** Caduca el caché y avisa a toda pantalla ya montada suscrita a `onProfileChange`. */
+  private invalidateAndNotify(): void {
+    this.cache.invalidate();
+    this.changeListeners.forEach((listener) => listener());
   }
 
   getCurrentProfile(): Promise<Profile | null> {
@@ -36,6 +44,11 @@ export class CachedProfileRepository implements ProfileRepository {
 
   onSessionChange(listener: () => void): () => void {
     return this.inner.onSessionChange(listener);
+  }
+
+  onProfileChange(listener: () => void): () => void {
+    this.changeListeners.add(listener);
+    return () => this.changeListeners.delete(listener);
   }
 
   // Mutaciones: sin caché, y el cambio de sesión que disparan ya invalida el
@@ -75,18 +88,20 @@ export class CachedProfileRepository implements ProfileRepository {
 
   /** Caduca el perfil cacheado; la próxima lectura vuelve a pedirlo al backend. */
   invalidate(): void {
-    this.cache.invalidate();
+    this.invalidateAndNotify();
   }
 
   /**
    * Esta sí toca el caché explícitamente: a diferencia de las de arriba, no
    * dispara `onAuthStateChange` (no cambia la sesión), así que sin esto
    * `getCurrentProfile()` seguiría devolviendo la foto vieja hasta que
-   * caducase el caché por su cuenta.
+   * caducase el caché por su cuenta. `invalidateAndNotify` además avisa a
+   * cualquier otra pantalla ya montada (p. ej. Home mientras se cambia la
+   * foto desde Ajustes).
    */
   async updateAvatar(image: PickedImage): Promise<Profile> {
     const profile = await this.inner.updateAvatar(image);
-    this.cache.invalidate();
+    this.invalidateAndNotify();
     return profile;
   }
 
@@ -99,5 +114,11 @@ export class CachedProfileRepository implements ProfileRepository {
   async deleteAccount(): Promise<void> {
     await this.inner.deleteAccount();
     this.cache.invalidate();
+  }
+
+  /** Mismo motivo que `updateAvatar`: no dispara cambio de sesión, así que invalida y avisa a mano. */
+  async equipFrame(frameId: string | null): Promise<void> {
+    await this.inner.equipFrame(frameId);
+    this.invalidateAndNotify();
   }
 }

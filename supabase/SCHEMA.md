@@ -869,6 +869,62 @@ confirmación de borrado.
 
 ---
 
+## 18. Marcos de foto (`20260909090000_photo_frames.sql`)
+
+Marco decorativo alrededor de `ProfilePhoto` (no confundir con el sistema de
+cosméticos/personaje RPG descartado, §14: esto es un borde SVG sobre la foto
+real de la cuenta, no un avatar dibujado). Tres escaleras de 5 escalones:
+
+- `bronze` — por **nivel** (`profiles.level`).
+- `silver` — por **racha** (`profiles.streak_days`).
+- `gold` — por **moneda virtual**. Sin moneda todavía: el `CHECK` de
+  `unlock_type` ya admite `'currency'`, pero esta migración no siembra
+  ninguna fila `gold` ni da ninguna vía para desbloquearlas. Queda para
+  cuando se decida de dónde sale esa moneda.
+
+### `frames` — catálogo estático
+
+`id` (`TEXT`, PK, p. ej. `bronze_3`), `tier`, `rung` (1–5, el escalón dentro
+de la escalera — más adorno cuanto más alto), `unlock_type`
+(`level`/`streak`/`currency`), `unlock_value` (el umbral: nivel, días de
+racha, o precio), `animated` (a partir de qué escalón se enciende el brillo
+del borde), `sort_order`.
+
+Es de solo lectura para el cliente (`REVOKE ALL` + `GRANT SELECT` a
+`anon, authenticated`, igual que el resto del esquema) y **también** para
+cualquier RPC: no hay ninguna función que escriba `frames`. Se puebla con
+`INSERT` en la propia migración; añadir un marco nuevo es una migración con
+un `INSERT` más, no un cambio de esquema.
+
+### `profiles.equipped_frame_id`
+
+`TEXT`, nullable, `REFERENCES frames(id)`. `NULL` es el estado por
+defecto (sin marco) — no un hueco a rellenar.
+
+### `equip_frame(p_frame_id TEXT)`
+
+Única RPC. `p_frame_id = NULL` desequipa y siempre está permitido. Si no,
+busca la fila en `frames` y compara el umbral contra el **propio** `level` o
+`streak_days` del caller (nunca un id ajeno — no hace falta, `auth.uid()` es
+siempre quien llama). `unlock_type = 'currency'` rechaza explícitamente por
+ahora. No hay tabla de "desbloqueos": la elegibilidad de bronce/plata se
+recalcula en cada llamada contra `profiles`, igual que `level_for_xp` (§7) o
+`recompute_streak` (§8) recalculan en vez de cachear un booleano que podría
+quedarse desactualizado.
+
+### Cliente
+
+`src/lib/frames.ts` espeja el catálogo (mismo patrón que `src/lib/xp.ts`
+espeja la fórmula de nivel): la vista (geometría SVG, color por tier) vive en
+TypeScript, la elegibilidad autoritativa vive en Postgres. Si se añade una
+fila en una migración futura, hay que añadir la entrada correspondiente ahí
+a mano — no hay generación automática.
+
+Estado: aplicada al Postgres local de este proyecto. Aún sin
+`supabase db push` al proyecto vinculado.
+
+---
+
 ## Placeholders a revisar
 
 - Ratio pasos → XP (`/10`).

@@ -198,6 +198,22 @@ export const es: Translations = {
     duels: 'DUELOS',
     streak: 'RACHA',
     totalSteps: 'PASOS TOTALES',
+    frames: 'Marcos',
+  },
+
+  frames: {
+    title: 'MARCOS',
+    subtitle: 'Un marco alrededor de tu foto. Bronce por nivel, plata por racha.',
+    tierBronze: 'Bronce — por nivel',
+    tierSilver: 'Plata — por racha',
+    bronzeName: 'Bronce',
+    silverName: 'Plata',
+    unlockLevel: 'Nivel %{value}',
+    unlockStreak: '🔥 %{value} días',
+    none: 'Sin marco',
+    equip: 'Equipar',
+    equipped: 'Equipado',
+    equipFailed: 'No se pudo equipar ese marco.',
   },
 
   paywall: {

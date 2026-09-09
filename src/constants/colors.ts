@@ -106,6 +106,15 @@ export const Gradients = {
    * Bright.
    */
   xp: [Palette.powerMid, Palette.power],
+  /**
+   * Marcos de foto (§18 SCHEMA.md), tier bronce — por nivel. Tres paradas
+   * para simular una superficie metálica bajo luz diagonal (claro arriba-
+   * izquierda, oscuro abajo-derecha), validado en el mockup
+   * `avatar-frames-mockup.html`.
+   */
+  frameBronze: ['#F0C79A', '#C97A3D', '#6B3C1B'],
+  /** Marcos de foto, tier plata — por racha. Mismo tratamiento que `frameBronze`. */
+  frameSilver: ['#F8FAFD', '#B9C2D0', '#5B6472'],
 } as const;
 
 /**

@@ -52,8 +52,24 @@ export type ProfileRow = {
   streak_days: number;
   is_pro: boolean;
   avatar_url: string | null;
+  /** Marco de foto equipado (§18 SCHEMA.md). `null` = sin marco. */
+  equipped_frame_id: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type FrameTier = 'bronze' | 'silver' | 'gold';
+export type FrameUnlockType = 'level' | 'streak' | 'currency';
+
+/** Catálogo estático de marcos de foto — ver `src/lib/frames.ts`. */
+export type FrameRow = {
+  id: string;
+  tier: FrameTier;
+  rung: number;
+  unlock_type: FrameUnlockType;
+  unlock_value: number;
+  animated: boolean;
+  sort_order: number;
 };
 
 export type StepLogRow = {
@@ -237,6 +253,8 @@ export type Database = {
         Update: { username?: string; avatar_url?: string | null };
         Relationships: [];
       };
+      /** Catálogo estático; ni siquiera hay RPC de escritura en esta fase (§18). */
+      frames: ReadOnlyTable<FrameRow>;
       step_logs: {
         Row: StepLogRow;
         /**
@@ -421,6 +439,10 @@ export type Database = {
       };
       /** Borra la fila, así que no devuelve nada. */
       remove_friend: { Args: { p_friendship_id: string }; Returns: undefined };
+
+      // ---- Marcos de foto ----
+      /** `p_frame_id: null` desequipa. Sin fila que devolver: no hay `Returns`. */
+      equip_frame: { Args: { p_frame_id: string | null }; Returns: undefined };
     };
     Enums: {
       duel_status: DuelStatus;

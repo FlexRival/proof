@@ -45,6 +45,7 @@ function toProfile(row: ProfileRow): Profile {
     streakDays: row.streak_days,
     isPro: row.is_pro,
     avatarUrl: row.avatar_url,
+    equippedFrameId: row.equipped_frame_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -84,6 +85,16 @@ export class SupabaseProfileRepository implements ProfileRepository {
     } = this.client.auth.onAuthStateChange(() => listener());
 
     return () => subscription.unsubscribe();
+  }
+
+  /**
+   * Esta implementación no cachea nada propio (el caché vive en el
+   * decorador), así que no tiene mutaciones que avisar aparte del cambio de
+   * sesión — de ahí el alias. `CachedProfileRepository` es quien de verdad
+   * necesita este método distinto de `onSessionChange`.
+   */
+  onProfileChange(listener: () => void): () => void {
+    return this.onSessionChange(listener);
   }
 
   async signInWithPassword(email: string, password: string): Promise<void> {
@@ -245,5 +256,13 @@ export class SupabaseProfileRepository implements ProfileRepository {
     // que se arregla solo en cuanto Supabase intente refrescarlo y le digan que
     // ese usuario no existe.
     await this.client.auth.signOut().catch(() => undefined);
+  }
+
+  async equipFrame(frameId: string | null): Promise<void> {
+    const { error } = await this.client.rpc('equip_frame', { p_frame_id: frameId });
+
+    if (error) {
+      throw new RepositoryError(error.message, { cause: error });
+    }
   }
 }

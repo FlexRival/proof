@@ -18,6 +18,7 @@ export type RouteKey =
   | 'friends'
   | 'profile'
   | 'settings'
+  | 'frames'
   | 'levelUp'
   | 'duelResult'
   | 'newDuel'
@@ -49,6 +50,11 @@ export const ROUTES: Record<RouteKey, RouteDefinition> = {
    * pantalla en `src/app/settings.tsx` es un placeholder sin contenido real.
    */
   settings: { key: 'settings', href: '/settings', label: 'Settings', tab: false },
+  /**
+   * Catálogo de marcos de foto (`supabase/SCHEMA.md` §18). Se abre desde el
+   * botón "Marcos" de Perfil, al lado de Ajustes.
+   */
+  frames: { key: 'frames', href: '/frames', label: 'Frames', tab: false },
   /**
    * Celebración, no destino: se abre con los niveles en la URL
    * (`/level-up?from=11&to=12`) cuando un duelo hace subir de nivel, y se

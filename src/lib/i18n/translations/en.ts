@@ -200,6 +200,22 @@ export const en = {
     duels: 'DUELS',
     streak: 'STREAK',
     totalSteps: 'TOTAL STEPS',
+    frames: 'Frames',
+  },
+
+  frames: {
+    title: 'FRAMES',
+    subtitle: 'A frame around your photo. Bronze for level, silver for streak.',
+    tierBronze: 'Bronze — by level',
+    tierSilver: 'Silver — by streak',
+    bronzeName: 'Bronze',
+    silverName: 'Silver',
+    unlockLevel: 'Level %{value}',
+    unlockStreak: '🔥 %{value} days',
+    none: 'No frame',
+    equip: 'Equip',
+    equipped: 'Equipped',
+    equipFailed: 'Could not equip that frame.',
   },
 
   paywall: {

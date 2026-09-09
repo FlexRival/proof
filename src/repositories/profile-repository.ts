@@ -13,6 +13,8 @@ export type Profile = {
   isPro: boolean;
   /** `null` si el usuario nunca subió una foto de perfil. */
   avatarUrl: string | null;
+  /** Marco de foto equipado (`supabase/SCHEMA.md` §18). `null` = sin marco. */
+  equippedFrameId: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -44,6 +46,17 @@ export interface ProfileRepository {
    * Devuelve la función para cancelar la suscripción.
    */
   onSessionChange(listener: () => void): () => void;
+
+  /**
+   * Se dispara cuando el perfil cacheado deja de ser válido: cambio de
+   * sesión, o cualquier mutación que lo actualice (`equipFrame`,
+   * `updateAvatar`). `useProfile()` se suscribe aquí para refrescarse aunque
+   * la mutación haya pasado en otra pantalla ya montada — sin esto, cada
+   * instancia de `useProfile()` solo se entera de un cambio de sesión y se
+   * queda con datos viejos (p. ej. `equippedFrameId`) hasta que se
+   * desmonte y vuelva a montar.
+   */
+  onProfileChange(listener: () => void): () => void;
 
   /** Inicia sesión con email/contraseña. Lanza `RepositoryError` si falla. */
   signInWithPassword(email: string, password: string): Promise<void>;
@@ -124,4 +137,14 @@ export interface ProfileRepository {
    * login. No hace falta navegar a mano.
    */
   deleteAccount(): Promise<void>;
+
+  /**
+   * Equipa (o, con `null`, quita) un marco de foto. El servidor vuelve a
+   * comprobar la elegibilidad — nivel o racha del propio usuario, según el
+   * marco — así que puede rechazarlo con `RepositoryError` aunque la
+   * pantalla ya lo enseñara como desbloqueado (el perfil pudo cambiar entre
+   * medias). No hace falta pasar el perfil actualizado: quien llama vuelve a
+   * pedir `getCurrentProfile()`.
+   */
+  equipFrame(frameId: string | null): Promise<void>;
 }

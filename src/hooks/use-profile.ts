@@ -23,8 +23,10 @@ async function fetchProfileState(): Promise<ProfileState> {
  * pantalla tenga que distinguir «cargando» de «sin sesión» de «falló», que en
  * la interfaz son tres cosas distintas.
  *
- * Se resuscribe a los cambios de sesión, así que al iniciar o cerrar sesión el
- * perfil se actualiza solo.
+ * Se resuscribe a `onProfileChange`, así que se actualiza solo tanto con un
+ * cambio de sesión (login, logout) como con una mutación hecha desde otra
+ * pantalla ya montada (equipar un marco en `/frames`, cambiar la foto en
+ * Ajustes) — no solo la que la disparó.
  */
 export function useProfile() {
   const [state, setState] = useState<ProfileState>({ status: 'loading' });
@@ -46,7 +48,7 @@ export function useProfile() {
 
     void sync();
 
-    const unsubscribe = profileRepository.onSessionChange(() => {
+    const unsubscribe = profileRepository.onProfileChange(() => {
       void sync();
     });
 

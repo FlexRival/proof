@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/atoms/button';
-import { ProfilePhoto } from '@/components/molecules/profile-photo';
+import { FrameOverlay } from '@/components/molecules/frame-overlay';
 import { StatTile } from '@/components/molecules/stat-tile';
 import { ThemedText } from '@/components/atoms/themed-text';
 import { ThemedView } from '@/components/atoms/themed-view';
@@ -15,6 +15,7 @@ import { useTranslation } from '@/hooks/use-translation';
 import { useDuels } from '@/hooks/use-duels';
 import { useSteps } from '@/hooks/use-steps';
 import { formatCompact, formatCount } from '@/lib/format';
+import { frameById } from '@/lib/frames';
 import { levelProgress } from '@/lib/xp';
 
 /**
@@ -73,8 +74,9 @@ export default function ProfileScreen() {
     return <ThemedView style={styles.screen} />;
   }
 
-  const { username, xp, streakDays, avatarUrl } = profileState.data;
+  const { username, xp, streakDays, avatarUrl, equippedFrameId } = profileState.data;
   const { level, xpIntoLevel, xpForNextLevel } = levelProgress(xp);
+  const equippedFrame = frameById(equippedFrameId);
 
   return (
     <ThemedView style={styles.screen}>
@@ -82,14 +84,21 @@ export default function ProfileScreen() {
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
             <ThemedText type="subheading">{t('profile.title')}</ThemedText>
-            <Button
-              label={t('common.settings')}
-              variant="secondary"
-              onPress={() => router.push(ROUTES.settings.href)}
-            />
+            <View style={styles.headerActions}>
+              <Button
+                label={t('profile.frames')}
+                variant="secondary"
+                onPress={() => router.push(ROUTES.frames.href)}
+              />
+              <Button
+                label={t('common.settings')}
+                variant="secondary"
+                onPress={() => router.push(ROUTES.settings.href)}
+              />
+            </View>
           </View>
 
-          <ProfilePhoto avatarUrl={avatarUrl} style={styles.character} />
+          <FrameOverlay frame={equippedFrame} avatarUrl={avatarUrl} style={styles.character} />
 
           <ThemedText type="bodyBold" style={styles.identity}>
             {username}
@@ -137,10 +146,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: Spacing.three,
   },
+  headerActions: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
   character: {
     width: '70%',
     alignSelf: 'center',
-    aspectRatio: 0.85,
+    // Cuadrado: la foto de perfil siempre lo es (`aspect:[1,1]` al subirla en
+    // Ajustes). Cualquier otra proporción aquí obliga a `cover` a recortar
+    // los lados de una foto que ya venía bien encuadrada.
+    aspectRatio: 1,
     // Lo traía `Card` por su cuenta; la foto lo necesita explícito para
     // recortarse con la misma forma que el hueco al que sustituye.
     borderRadius: Radius.lg,

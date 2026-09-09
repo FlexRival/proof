@@ -106,6 +106,10 @@ degradado es un array de paradas). Viven en `Gradients`, en `colors.ts`:
   mantiene porque venía de la paleta original, pero el botón primario del
   diseño es **plano**: medido da `#C6FF4A` idéntico arriba, en medio y abajo.
   Si acaba sin usarse en ninguna pantalla, bórralo.
+- `Gradients.frameBronze` / `frameSilver` — el metal de los marcos de foto
+  (§18 `supabase/SCHEMA.md`), tres paradas para simular una superficie
+  metálica bajo luz diagonal en `FrameOverlay`. Oro llega con la migración
+  que añada la moneda virtual.
 
 ## Texto
 

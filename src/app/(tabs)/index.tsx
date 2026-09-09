@@ -8,24 +8,20 @@ import { Chip } from '@/components/atoms/chip';
 import { MeterBar, type MeterTone } from '@/components/atoms/meter-bar';
 import { ThemedText } from '@/components/atoms/themed-text';
 import { ThemedView } from '@/components/atoms/themed-view';
+import { FrameOverlay } from '@/components/molecules/frame-overlay';
 import { Notice } from '@/components/molecules/notice';
-import { ProfilePhoto } from '@/components/molecules/profile-photo';
 import { EmptyState } from '@/components/organisms/empty-state';
 import { XpProgress } from '@/components/organisms/xp-progress';
 import { ROUTES } from '@/constants/routes';
-import {
-  BottomTabInset,
-  MaxContentWidth,
-  Radius,
-  Spacing,
-  type ThemeColor,
-} from '@/constants/theme';
+import { BottomTabInset, MaxContentWidth, Radius, Spacing, type ThemeColor } from '@/constants/theme';
 import { useDuels } from '@/hooks/use-duels';
 import { useProfile } from '@/hooks/use-profile';
 import { useSteps, type StepsSummary } from '@/hooks/use-steps';
+import { useTheme } from '@/hooks/use-theme';
 import { useTranslation } from '@/hooks/use-translation';
 import { daysRemaining, mostUrgent } from '@/lib/duel';
 import { formatCount } from '@/lib/format';
+import { frameById, type FrameMeta } from '@/lib/frames';
 import { levelProgress } from '@/lib/xp';
 import type { Duel } from '@/repositories';
 
@@ -35,7 +31,10 @@ import type { Duel } from '@/repositories';
  *
  * **No hay ningún personaje RPG que represente al usuario** (se descartó a
  * propósito, junto con el sistema de cosméticos que lo dibujaba) — los
- * recuadros de personaje/avatar son huecos reservados, no un render real.
+ * recuadros de personaje/avatar enseñan la **foto de perfil real** de la
+ * cuenta (`ProfilePhoto`, la misma que Ajustes y Perfil), no un render
+ * inventado; sin foto queda el hueco reservado del diseño, igual que en esas
+ * dos pantallas.
  *
  * Desde KAN-50 y KAN-32 aquí ya no queda nada inventado: la identidad sale de
  * `useProfile`, los pasos de `useSteps` (leídos del teléfono y confirmados por
@@ -44,7 +43,14 @@ import type { Duel } from '@/repositories';
  * El "RANK" de la captura no sale: era un sustituto de la clase de personaje
  * descartada, y no hay ningún concepto de rango individual en el esquema
  * (`clans.rank_points` es de clan, no de jugador) — enseñar uno inventado sería
- * tan de mentira como los pasos que había antes.
+ * tan de mentira como los pasos que había antes. Por el mismo motivo, ningún
+ * clan sale aquí: la capa de clanes tiene esquema pero todavía no tiene
+ * repositorio ni hook en la app, así que hoy el usuario nunca tiene uno que
+ * enseñar.
+ *
+ * La racha sí es dato real (`useProfile`) y hasta ahora solo se enseñaba en
+ * Perfil: aquí sale como píldora sobre la foto grande, tono `streak` (Rival),
+ * igual que el resto de la app.
  *
  * Los pasos van en neutro, nunca en Power: el diseño insiste en que los pasos
  * son actividad, no un contador de XP en vivo.
@@ -61,8 +67,9 @@ export default function HomeScreen() {
     return <ThemedView style={styles.screen} />;
   }
 
-  const { username, xp, avatarUrl } = profileState.data;
+  const { username, xp, avatarUrl, streakDays, equippedFrameId } = profileState.data;
   const { level, xpIntoLevel, xpForNextLevel } = levelProgress(xp);
+  const equippedFrame = frameById(equippedFrameId);
 
   const steps = stepsState.status === 'ready' ? stepsState.data : null;
   const duel = duelsState.status === 'ready' ? mostUrgent(duelsState.data.active) : null;
@@ -72,9 +79,10 @@ export default function HomeScreen() {
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            {/* La foto de la cuenta, igual que en Perfil y Ajustes (KAN-64).
-                No es el hueco del personaje descartado: eso es `character`. */}
-            <ProfilePhoto avatarUrl={avatarUrl} style={styles.avatar} />
+            {/* La foto de la cuenta, igual que en Perfil y Ajustes (KAN-64), con
+                su marco si tiene uno equipado. No es el hueco del personaje
+                descartado: eso es `character`. */}
+            <FrameOverlay frame={equippedFrame} avatarUrl={avatarUrl} style={styles.avatar} />
 
             <View style={styles.identity}>
               <ThemedText type="bodyBold">{username}</ThemedText>
@@ -85,8 +93,11 @@ export default function HomeScreen() {
 
           {duel ? (
             <>
-              {/* Tu foto, en grande, igual que en Perfil. */}
-              <ProfilePhoto avatarUrl={avatarUrl} style={styles.character} />
+              {/* Tu foto, en grande, igual que en Perfil, con su marco y racha. */}
+              <View style={styles.characterWrap}>
+                <FrameOverlay frame={equippedFrame} avatarUrl={avatarUrl} style={styles.character} />
+                <StreakBadge days={streakDays} />
+              </View>
 
               <ThemedText type="heading" style={styles.level}>
                 {t('common.level', { level })}
@@ -96,7 +107,12 @@ export default function HomeScreen() {
 
               <StepsCard steps={steps} onConnect={requestAccess} />
 
-              <CurrentDuelCard duel={duel} username={username} avatarUrl={avatarUrl} />
+              <CurrentDuelCard
+                duel={duel}
+                username={username}
+                avatarUrl={avatarUrl}
+                frame={equippedFrame}
+              />
 
               <Button
                 label={t('home.challengeAFriend')}
@@ -105,7 +121,13 @@ export default function HomeScreen() {
               />
             </>
           ) : (
-            <NoDuelState steps={steps} onConnect={requestAccess} avatarUrl={avatarUrl} />
+            <NoDuelState
+              steps={steps}
+              onConnect={requestAccess}
+              avatarUrl={avatarUrl}
+              streakDays={streakDays}
+              frame={equippedFrame}
+            />
           )}
         </ScrollView>
       </SafeAreaView>
@@ -197,11 +219,13 @@ function CurrentDuelCard({
   duel,
   username,
   avatarUrl,
+  frame,
 }: {
   duel: Duel;
   username: string;
-  /** La tuya. La del rival viaja dentro del propio duelo. */
+  /** La tuya, con su marco. La del rival viaja dentro del propio duelo. */
   avatarUrl: string | null;
+  frame: FrameMeta | null;
 }) {
   const { t } = useTranslation();
   const days = daysRemaining(duel.endDate);
@@ -222,17 +246,21 @@ function CurrentDuelCard({
 
       <DuelSideRow
         name={username}
-        avatarUrl={avatarUrl}
         steps={duel.yourSteps}
         tone="power"
         leader={leader}
+        avatarUrl={avatarUrl}
+        frame={frame}
       />
       <DuelSideRow
         name={duel.opponent.username}
-        avatarUrl={duel.opponent.avatarUrl}
         steps={duel.theirSteps}
         tone="rival"
         leader={leader}
+        avatarUrl={duel.opponent.avatarUrl}
+        // `DuelOpponent` no trae `equippedFrameId` todavía — solo tu propia
+        // foto lleva marco por ahora.
+        frame={null}
       />
 
       <Button label={t('home.viewDuel')} onPress={() => router.push(ROUTES.duels.href)} />
@@ -251,10 +279,14 @@ function NoDuelState({
   steps,
   onConnect,
   avatarUrl,
+  streakDays,
+  frame,
 }: {
   steps: StepsSummary | null;
   onConnect: ConnectFn;
   avatarUrl: string | null;
+  streakDays: number;
+  frame: FrameMeta | null;
 }) {
   const { t } = useTranslation();
 
@@ -265,8 +297,16 @@ function NoDuelState({
         message={t('home.emptyMessage')}
         actionLabel={t('home.challengeAFriend')}
         onAction={() => router.push(ROUTES.newDuel.href)}>
-        {/* Tu foto. Sin duelo manda en la pantalla, así que va más grande. */}
-        <ProfilePhoto avatarUrl={avatarUrl} style={styles.idleCharacter} fallbackVariant="sunken" />
+        {/* Tu foto, con marco y racha. Sin duelo manda en la pantalla, así que va más grande. */}
+        <View style={styles.idleCharacterWrap}>
+          <FrameOverlay
+            frame={frame}
+            avatarUrl={avatarUrl}
+            style={styles.idleCharacter}
+            fallbackVariant="sunken"
+          />
+          <StreakBadge days={streakDays} />
+        </View>
       </EmptyState>
 
       {/*
@@ -301,6 +341,12 @@ const SIDE_COUNT_COLOR: Record<Extract<MeterTone, 'power' | 'rival'>, ThemeColor
   rival: 'defeat',
 };
 
+/** Anillo del avatar de cada lado: mismo color que decide de quién es esa fila. */
+const SIDE_AVATAR_EDGE: Record<Extract<MeterTone, 'power' | 'rival'>, ThemeColor> = {
+  power: 'primaryEdgeStrong',
+  rival: 'rivalEdge',
+};
+
 type DuelSideRowProps = {
   name: string;
   avatarUrl: string | null;
@@ -308,13 +354,20 @@ type DuelSideRowProps = {
   tone: Extract<MeterTone, 'power' | 'rival'>;
   /** Pasos de quien va ganando: el denominador de las dos barras. */
   leader: number;
+  frame: FrameMeta | null;
 };
 
-function DuelSideRow({ name, avatarUrl, steps, tone, leader }: DuelSideRowProps) {
+function DuelSideRow({ name, steps, tone, leader, avatarUrl, frame }: DuelSideRowProps) {
+  const theme = useTheme();
+
   return (
     <View style={styles.duelRow}>
-      {/* La foto de cada lado del duelo. */}
-      <ProfilePhoto avatarUrl={avatarUrl} style={styles.duelAvatar} />
+      {/* La foto de cada lado del duelo, con su marco. */}
+      <FrameOverlay
+        frame={frame}
+        avatarUrl={avatarUrl}
+        style={[styles.duelAvatar, { borderColor: theme[SIDE_AVATAR_EDGE[tone]] }]}
+      />
 
       <View style={styles.duelBody}>
         <View style={styles.spread}>
@@ -326,6 +379,22 @@ function DuelSideRow({ name, avatarUrl, steps, tone, leader }: DuelSideRowProps)
         <MeterBar value={steps} max={leader} tone={tone} />
       </View>
     </View>
+  );
+}
+
+/**
+ * Píldora de racha sobre la foto grande. Va sobre `surfaceRaised` opaco, no
+ * el tinte translúcido de `Chip`: encima de una foto arbitraria un tinte no
+ * da el contraste que el diseño mide sobre superficie oscura (ver
+ * `docs/design.md` § Superficies teñidas).
+ */
+function StreakBadge({ days }: { days: number }) {
+  return (
+    <ThemedView type="surfaceRaised" style={styles.streakBadge}>
+      <ThemedText type="caption" themeColor="streak">
+        {`🔥 ${formatCount(days)}`}
+      </ThemedText>
+    </ThemedView>
   );
 }
 
@@ -366,22 +435,42 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: Spacing.one,
   },
-  character: {
-    // Medido en el diseño: el recuadro ocupa la mitad del ancho del contenido
-    // y va centrado, no a sangre.
+  characterWrap: {
+    // Medido en el diseño: el recuadro del personaje ocupa la mitad del ancho
+    // del contenido y va centrado, no a sangre.
     width: '50%',
     alignSelf: 'center',
     aspectRatio: 1,
     // El `borderRadius` lo traía `Card`; la foto lo necesita explícito.
     borderRadius: Radius.lg,
   },
-  idleCharacter: {
-    // Sin duelo la foto manda en la pantalla: en el diseño es más alta que
-    // ancha y ocupa más que la de la pantalla con duelo.
+  character: {
+    width: '100%',
+    height: '100%',
+    borderRadius: Radius.lg,
+  },
+  idleCharacterWrap: {
+    // Sin duelo el personaje manda en la pantalla: ocupa más que el de la
+    // pantalla con duelo. Cuadrado, no más alto que ancho como en el diseño
+    // original: la foto de perfil siempre es cuadrada (`aspect:[1,1]` al
+    // subirla en Ajustes) y una caja más estrecha obligaba a `cover` a
+    // recortarle los lados.
     width: '60%',
     alignSelf: 'center',
-    aspectRatio: 0.82,
+    aspectRatio: 1,
+  },
+  idleCharacter: {
+    width: '100%',
+    height: '100%',
     borderRadius: Radius.lg,
+  },
+  streakBadge: {
+    position: 'absolute',
+    right: Spacing.two,
+    bottom: Spacing.two,
+    paddingVertical: Spacing.half,
+    paddingHorizontal: Spacing.two,
+    borderRadius: Radius.pill,
   },
   idleSteps: {
     flexDirection: 'row',
@@ -418,6 +507,7 @@ const styles = StyleSheet.create({
     // Lo traía `Card` por su cuenta; la foto lo necesita explícito para
     // recortarse con la misma forma que el hueco al que sustituye.
     borderRadius: Radius.lg,
+    borderWidth: 2,
   },
   duelBody: {
     flex: 1,
