@@ -49,6 +49,34 @@ Prooffit es una app RPG móvil desarrollada con Expo (React Native) donde los pa
   sistema de diseño, patrón repositorio).
 
 ## Notas de implementación (estado actual)
+- **⚠️ Permisos de RPC: `REVOKE ... FROM PUBLIC` NO BASTA.** Supabase trae un
+  `ALTER DEFAULT PRIVILEGES ... GRANT EXECUTE ON FUNCTIONS TO anon,
+  authenticated` sobre el esquema `public`, así que cada función nace con el
+  permiso concedido **nominalmente** a esos dos roles, no heredado de
+  `PUBLIC`. Un `REVOKE ... FROM PUBLIC` no los toca y la función se queda
+  abierta a cualquiera que tenga la clave `anon` — que viaja dentro del APK.
+  Así se coló KAN-83: `reconcile_subscription` era llamable por `anon` y
+  permitía hacerse Pro gratis. **Al escribir una RPC nueva, revoca nombrando
+  los roles** (`FROM anon, authenticated`) y concede solo lo que haga falta.
+  `20260909110000_rpc_execute_hardening.sql` ya deja los default privileges
+  cerrados, así que lo nuevo nace privado: si una RPC debe ser pública, hay
+  que pedirlo con un `GRANT` explícito. Comprueba siempre con
+  `has_function_privilege('anon', ...)`, no dando por bueno el SQL.
+- **Plataforma de la v1 (KAN-46, decidido el 9-sep-2026): SOLO ANDROID.**
+  **No existe cuenta de Apple Developer** y no se va a crear antes de la
+  entrega (KAN-81, aplazado a la v1.1). Consecuencias prácticas al escribir
+  código o rellenar trámites: nada de App Store Connect, nada de reglas de
+  HealthKit ni de `NSHealthShareUsageDescription`, y la ficha de tienda solo
+  con los campos de Play. El código de iOS que ya existe (el podómetro de
+  CoreMotion en `src/lib/steps/pedometer.ts`) **no se borra** — sigue siendo
+  la vía de pasos de iOS para cuando se retome, y hoy no estorba.
+- **Alcance de la v1 (KAN-63, decidido el 9-sep-2026): «mínimo Shipaton».**
+  Entra: pasos reales, duelo 1v1 completo con su lámina para compartir,
+  amigos, paywall con el cupo de 1 duelo/día, y legal (privacidad, términos,
+  borrado de cuenta). **Queda fuera hasta la v1.1: clanes, guerras de clan y
+  leaderboard de clanes.** El backend de todo eso está desplegado y se queda
+  ahí inerte — no hay que revertir nada, porque los clanes **nunca llegaron a
+  tener UI**. No construyas pantallas de clan sin que se reabra esa decisión.
 - **XP:** solo se gana al ganar un duelo (`floor(pasos_ganador / 10)`), no por
   pasos diarios. Ver `supabase/SCHEMA.md`.
 - **Pasos:** implementados (KAN-50). `src/lib/steps/` **lee** del teléfono
@@ -73,9 +101,13 @@ Prooffit es una app RPG móvil desarrollada con Expo (React Native) donde los pa
   quitaron del sistema de diseño.
 - **Sin personaje RPG ni cosméticos.** Se construyó y probó un sistema
   completo de cosméticos equipables (catálogo, desbloqueo por nivel/Pro,
-  `CharacterAvatar`) y se descartó por decisión de producto — nunca se hizo
-  `supabase db push` de su migración, así que se borró sin más (ver
-  `supabase/SCHEMA.md`, nota al principio). Los recuadros de avatar/personaje
+  `CharacterAvatar`) y se descartó por decisión de producto. ⚠️ Su migración
+  **sí llegó a producción**, al contrario de lo que decía esta nota hasta el
+  9-sep-2026: `cosmetic_items` (19 filas), `user_cosmetics`,
+  `user_equipped_cosmetics`, sus RPC y un trigger sobre `profiles` siguen
+  vivos en el servidor sin ninguna migración en el repo que los declare. Es
+  deriva de esquema y está abierto en KAN-80 (ver `supabase/SCHEMA.md`, nota
+  al principio). Los recuadros de avatar/personaje
   de las pantallas son huecos reservados del diseño (comentarios "KAN-19"),
   no un render real. La foto de perfil real (Ajustes) es un dato de cuenta
   aparte, sin relación con esto.
@@ -140,18 +172,26 @@ Prooffit es una app RPG móvil desarrollada con Expo (React Native) donde los pa
   `profileRepository.deleteAccount()` → Edge Function `delete-account`; la RPC
   `prepare_account_deletion()` traspasa antes el liderazgo de clan porque
   `clans.leader_id` es `ON DELETE CASCADE` y si no se llevaría el clan entero
-  por delante. **`LEGAL_CONTACT` en `src/lib/legal/types.ts` son placeholders
-  sin rellenar y bloquean publicar.**
-- **Estado de migraciones:** las 2 migraciones de clanes
-  (`20260903150000_clans.sql`, `20260903150500_clan_wars.sql`), la de
-  amistades (`20260904110000_friendships.sql`) y las de suscripciones
-  (`20260906120000_subscriptions.sql`,
-  `20260906121000_expire_subscriptions_cron.sql`) aún no se han hecho
-  `supabase db push` al proyecto vinculado. Tampoco lo están la del anti-cheat
-  de pasos (`20260906130000_step_sync_anticheat.sql`), la del email
-  (`20260907120000_profile_email.sql`) ni la del borrado de cuenta
-  (`20260907130000_account_deletion.sql`), que además necesita
-  `supabase functions deploy delete-account`. Es KAN-48.
+  por delante. **`LEGAL_CONTACT` en `src/lib/legal/types.ts` sigue con
+  tres placeholders sin rellenar (`entity`, `email`, `site`) y bloquean
+  publicar** (KAN-74). El cuarto, `hostingRegion`, ya está: UE / Fráncfort
+  (`eu-central-1`, verificado), y va por idioma porque se interpola dentro de
+  una frase de la política.
+- **Estado de migraciones: desplegado.** Comprobado el 9-sep-2026 contra el
+  proyecto vinculado (`tirhukkivndhmlknvbfr`, región `eu-central-1`): las **16
+  migraciones del repo están aplicadas** —incluidas las de clanes, guerras,
+  amistades, suscripciones, anti-cheat de pasos, email y borrado de cuenta— y
+  las **4 Edge Functions están ACTIVE** (`resolve-expired-competitions`,
+  `revenuecat-webhook` con `verify_jwt=false`, `revenuecat-reconcile` y
+  `delete-account`). De KAN-48 solo quedan los secretos, que no se ven por
+  API: `project_url` y `service_role_key` en el Vault, y
+  `REVENUECAT_WEBHOOK_AUTH` / `REVENUECAT_SECRET_API_KEY` por
+  `supabase secrets set`. Sin ellos el cron y el webhook fallan **en
+  silencio**. ⚠️ Además el historial local y el remoto **no coinciden**: el
+  borrado de cuenta está en el repo como `20260907130000_account_deletion.sql`
+  pero en el servidor figura como `20260908201735` (se aplicó por MCP con otro
+  sello). Hay que `supabase migration repair` antes del siguiente `db push`, o
+  intentará aplicarla dos veces.
 - **Suscripciones (RevenueCat):** un solo entitlement `pro` (Free vs Pro, sin
   tiers). RevenueCat es la fuente de verdad; el backend sincroniza el estado
   vía webhook. Tabla `subscriptions` + `subscription_events` (idempotencia);
