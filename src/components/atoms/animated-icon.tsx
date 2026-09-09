@@ -34,7 +34,12 @@ export function AnimatedSplashOverlay() {
     },
   });
 
-  const image = <Image style={styles.image} source={require('@/assets/images/expo-logo.png')} />;
+  // La MISMA imagen y el MISMO tamaño que el splash nativo de `app.json`
+  // (`splash-icon.png`, `imageWidth: 76`). Es lo que hace que el relevo del
+  // splash del sistema a este overlay no se note. Hasta KAN-47 cargaba aquí
+  // `expo-logo.png` —el logo de la plantilla de Expo—, así que la app
+  // arrancaba enseñando una marca ajena durante unas décimas.
+  const image = <Image style={styles.image} source={require('@/assets/images/splash-icon.png')} />;
 
   return animate ? (
     <Animated.View
@@ -63,7 +68,7 @@ export function AnimatedSplashOverlay() {
 const styles = StyleSheet.create({
   image: {
     width: 76,
-    height: 71,
+    height: 76,
   },
   splashOverlay: {
     ...StyleSheet.absoluteFill,

@@ -64,11 +64,22 @@ Estado de aplicación:
   porque ni PGlite ni el stack local por defecto traen `pg_cron`/`pg_net`
   activos — solo se prueban contra un proyecto Supabase real.
 
-Hubo una migración de cosméticos de personaje
-(`20260905120000_cosmetics.sql`) que se borró sin más: nunca se hizo
-`supabase db push` de ella a ningún proyecto real, así que no hacía falta una
-migración de reversa — la funcionalidad completa (personaje RPG equipable) se
-descartó.
+⚠️ **Deriva de esquema con los cosméticos (KAN-80).** Este documento decía
+hasta el 9-sep-2026 que la migración de cosméticos de personaje
+(`20260905120000_cosmetics.sql`) se borró sin haberse aplicado nunca. **Es
+falso.** En el proyecto vinculado existen ahora mismo `cosmetic_items` (con 19
+filas de catálogo), `user_cosmetics` y `user_equipped_cosmetics`, más sus
+tipos, sus RPC (`equip_cosmetic`, `unequip_cosmetic`,
+`grant_level_cosmetics`) y el trigger `profiles_touch_level_cosmetics`, que
+cuelga de `profiles` y se dispara al cambiar de nivel.
+
+La funcionalidad de producto (personaje RPG equipable) sí se descartó, pero el
+esquema se creó fuera del flujo de migraciones y luego se borró el archivo del
+repo: **ese trozo de base de datos no se puede reconstruir desde el
+repositorio**. Quien levante el proyecto de cero o cree una rama de Supabase
+obtendrá algo distinto a producción. Hay que decidir entre borrarlas con una
+migración de reversa o escribir la migración que las declara — ver KAN-80. No
+lo dejes así.
 
 
 ---

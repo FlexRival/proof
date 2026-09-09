@@ -37,14 +37,35 @@ export type LocalizedLegalDocument = Record<Language, LegalDocument>;
 export const LEGAL_CONTACT = {
   /** Nombre o razón social de quien responde por los datos. */
   entity: '[PENDIENTE: nombre o razón social del responsable]',
-  /** Dirección de contacto para ejercer derechos. Tiene que estar viva. */
-  email: '[PENDIENTE: correo de contacto]',
+  /**
+   * Dirección de contacto para ejercer derechos. Tiene que estar viva: es donde
+   * llegan las peticiones de borrado de quien ya desinstaló la app y no puede
+   * usar `Ajustes → Borrar cuenta`.
+   *
+   * Buzón compartido del equipo, no el personal de nadie: si el que lo lee se
+   * va de vacaciones, la obligación de responder en 30 días sigue corriendo.
+   */
+  email: 'porz4.shipaton@gmail.com',
   /** Dominio donde viven las versiones públicas de estos textos (KAN-56). */
   site: '[PENDIENTE: dominio de la landing]',
   /**
    * Dónde está alojada la base de datos de Supabase. Determina si hay
    * transferencia internacional de datos que declarar: un proyecto en una
    * región de EE. UU. obliga a mencionarla, uno en la UE no.
+   *
+   * Verificado el 9-sep-2026 contra el panel de Supabase: el proyecto
+   * `tirhukkivndhmlknvbfr` está en `eu-central-1` (AWS Fráncfort). Al estar
+   * dentro de la UE **no hay transferencia internacional que declarar**, ni en
+   * este texto ni en el Data safety de Play (KAN-54).
+   *
+   * Es el único de los cuatro campos que va por idioma: los otros tres son un
+   * nombre, un correo y un dominio, que se escriben igual en cualquier lengua,
+   * pero este se interpola dentro de una frase ("Los datos residen en ___" /
+   * "Data is stored in ___") y una sola cadena quedaría en el idioma
+   * equivocado en la mitad de las lecturas.
    */
-  hostingRegion: '[PENDIENTE: región del proyecto de Supabase]',
+  hostingRegion: {
+    en: 'the European Union (Frankfurt, Germany)',
+    es: 'la Unión Europea (Fráncfort, Alemania)',
+  } satisfies Record<Language, string>,
 } as const;

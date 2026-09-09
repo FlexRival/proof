@@ -70,7 +70,7 @@ export const privacyPolicy: LocalizedLegalDocument = {
       {
         heading: '5. Con quién los compartimos',
         body: [
-          `Supabase, que aloja nuestra base de datos y gestiona la autenticación. Los datos residen en ${LEGAL_CONTACT.hostingRegion}.`,
+          `Supabase, que aloja nuestra base de datos y gestiona la autenticación. Los datos residen en ${LEGAL_CONTACT.hostingRegion.es}.`,
           'RevenueCat, que gestiona el estado de las suscripciones. Recibe un identificador de usuario y lo relacionado con tu compra; no recibe tus pasos.',
           'Apple y Google, cuando compras una suscripción, como procesadores del pago.',
           'No hay nadie más. No compartimos tus datos con anunciantes, ni con brokers de datos, ni con analíticas de terceros.',
@@ -170,7 +170,7 @@ export const privacyPolicy: LocalizedLegalDocument = {
       {
         heading: '5. Who we share it with',
         body: [
-          `Supabase, which hosts our database and handles authentication. Data is stored in ${LEGAL_CONTACT.hostingRegion}.`,
+          `Supabase, which hosts our database and handles authentication. Data is stored in ${LEGAL_CONTACT.hostingRegion.en}.`,
           'RevenueCat, which manages subscription state. It receives a user identifier and your purchase details; it does not receive your steps.',
           'Apple and Google, when you buy a subscription, as payment processors.',
           'Nobody else. We do not share your data with advertisers, data brokers or third-party analytics.',

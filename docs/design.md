@@ -35,11 +35,60 @@ Prooffit no tiene modo claro. `Colors` es un solo objeto (con la clave
 Si algún día se añade un tema claro, es ampliar esa clave, no rediseñar el
 tipo `ThemeColor`.
 
-`app.json` fija `userInterfaceStyle: "dark"` y el `backgroundColor` del
-splash screen en `#08090C` (el mismo valor que `Palette.frame`, copiado a
-mano porque JSON no puede importar de `colors.ts`) para que el cromo
-nativo (teclado, splash) no desentone. Si `Palette.frame` cambia, actualiza
-`app.json` en el mismo commit.
+`app.json` fija `userInterfaceStyle: "dark"` y copia `#08090C` —el mismo
+valor que `Palette.frame`, a mano, porque JSON no puede importar de
+`colors.ts`— en los dos sitios de cromo nativo que lo piden: el
+`backgroundColor` del splash screen y el del icono adaptativo de Android.
+Así ni el arranque ni el cajón de aplicaciones desentonan con la app.
+
+El icono adaptativo traía `#E6F4FE`, el azul claro de la plantilla de
+`create-expo-app`. En una app de tema oscuro único cantaba en el cajón y,
+sobre todo, en las capturas de la ficha de tienda. Corregido en KAN-47.
+
+Si `Palette.frame` cambia, actualiza los dos valores de `app.json` en el
+mismo commit.
+
+## Icono de la app
+
+La marca es el **anillo partido con monograma**: la barra de progreso del
+duelo, curvada en círculo, con la mitad en `Power` (`#C6FF4A`, tú) y la otra
+en `Rival` (`#FF5C38`, el oponente), y una **P** en `text` (`#F1F2F6`) en el
+centro, sobre `Frame` (`#08090C`). No lleva ningún color fuera del sistema.
+
+Es la variante 3 de `scripts/instagram-logo.html`, que se eligió entre cuatro
+propuestas (monograma sobre verde, anillo solo, anillo + P, y dos galones
+enfrentados).
+
+**Los PNG de `assets/images/` son ficheros generados.** La fuente de verdad es
+`scripts/app-icons.html`, y se regeneran con:
+
+```
+bash scripts/render-app-icons.sh
+```
+
+Usa el Chrome instalado en modo headless, sin añadir dependencias, igual que
+`render-instagram-slides.sh`. **Nunca se retoca un PNG a mano**: se toca el
+HTML y se vuelve a ejecutar.
+
+| Fichero | Tamaño | Fondo |
+|---|---|---|
+| `icon.png` | 1024² | `Frame`, marca a sangre |
+| `splash-icon.png` | 1024² | transparente (el splash ya pinta `Frame`) |
+| `favicon.png` | 256² | `Frame` |
+| `android-icon-foreground.png` | 1024² | transparente |
+| `android-icon-background.png` | 1024² | `Frame` liso |
+| `android-icon-monochrome.png` | 1024² | transparente, silueta blanca |
+
+**La trampa del icono adaptativo de Android**, por si hay que tocar la escala:
+de los 108 dp del lienzo solo se garantiza el círculo central de 66 dp
+(61,1 %). Y lo que hay que encajar ahí es la **marca visible**, no el lienzo
+que la contiene — el anillo solo ocupa el 85,5 % de su propio lienzo, así que
+escalar el lienzo al 61 % deja la marca en un 52 % y el icono sale pequeño.
+La escala está calibrada para que la marca mida el **60 %** del lienzo final.
+`scripts/app-icons.html?s=preview` la compone sobre las tres máscaras de
+lanzador (círculo, squircle, cuadrado redondeado) para comprobarlo de un
+vistazo.
+
 
 ## Superficies
 

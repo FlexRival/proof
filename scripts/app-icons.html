@@ -1,0 +1,187 @@
+<title>Prooffit · iconos de la app</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@700&display=swap">
+<style>
+  /* Tokens de docs/design.md. No inventes valores.
+     La marca es la variante 3 de scripts/instagram-logo.html («anillo +
+     monograma»): el anillo partido en Power/Rival es la barra del duelo
+     curvada, y la P va dentro. Geometría copiada tal cual de ahí para que
+     sea la misma marca, no una parecida. */
+  :root {
+    --frame:#08090C;
+    --power:#C6FF4A;
+    --rival:#FF5C38;
+    --text:#F1F2F6;
+    --display:'Chakra Petch','Segoe UI',system-ui,sans-serif;
+  }
+  * { box-sizing:border-box; }
+  html, body { margin:0; padding:0; background:transparent; }
+  [hidden] { display:none !important; }
+
+  /* Cada lienzo se pinta a 1024x1024 y el script de render fija el
+     --window-size al mismo tamaño, así que el recorte es exacto. */
+  .canvas {
+    width:1024px; height:1024px; position:relative; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .canvas.opaque { background:var(--frame); }
+
+  /* La marca completa, en su lienzo nativo de 1080, escalada al lienzo. */
+  .art { width:1080px; height:1080px; position:relative; flex:none;
+         display:flex; align-items:center; justify-content:center; }
+  .art > svg { position:absolute; inset:0; }
+  .glyph {
+    position:absolute; font-family:var(--display); font-weight:700;
+    font-size:400px; line-height:1; color:var(--text);
+    /* El punto óptico de la P no coincide con el centro geométrico. */
+    transform:translateY(-8px);
+  }
+
+  /* 1024/1080 = 0.94815 — la marca a sangre, para el icono normal. */
+  .fit  { transform:scale(0.94815); }
+
+  /* Zona segura del icono adaptativo de Android: de los 108 dp del lienzo
+     solo se garantiza el círculo central de 66 dp (61,1 %). Todo lo que
+     sobresalga se lo puede comer el recorte del lanzador (círculo, squircle,
+     gota...).
+
+     Ojo al calcular la escala: lo que hay que encajar en ese 61 % es la
+     MARCA VISIBLE, no el lienzo que la contiene. El anillo tiene r=418 y
+     grosor 86, así que su borde exterior cae en 461 de 540 → la marca solo
+     ocupa el 85,5 % de su propio lienzo de 1080 (medido: 924 px). Escalar el
+     lienzo al 61 % dejaba la marca en un 52 %: un icono pequeño y con
+     demasiado aire.
+
+     Se deja la marca en el 60 % del lienzo final (614 px de 1024), un pelo
+     por dentro del 61 % garantizado para que el anillo no bese el borde de
+     la máscara circular:  614 / 924 = 0.6645. */
+  .safe { transform:scale(0.6645); }
+
+  /* Capa monocroma de Android 13+: el sistema la tiñe, así que la forma va
+     toda en un solo color opaco y el color real da igual. */
+  .mono svg circle { stroke:#FFFFFF !important; }
+  .mono .glyph { color:#FFFFFF; }
+
+  /* --- previsualización del icono adaptativo, no se exporta --- */
+  .mask { width:288px; height:288px; position:relative; overflow:hidden; flex:none; }
+  .mask.circulo  { border-radius:50%; }
+  .mask.squircle { border-radius:64px; }
+  .mask.cuadrado { border-radius:12px; }
+  .mask .capa-fondo { position:absolute; inset:0; background:var(--frame); }
+  .mask .capa-marca {
+    position:absolute; inset:0; display:flex; align-items:center;
+    justify-content:center; overflow:hidden;
+  }
+  /* El lienzo adaptativo es 108dp y solo se ven 72dp: la capa se pinta a
+     288/72 = 4/3 del tamaño de la máscara y se recorta. */
+  .mask .capa-marca > .art { transform-origin:center; }
+</style>
+
+<!-- ═══════════════ 1 · icon.png — marca a sangre sobre Frame ═══════════════ -->
+<div class="canvas opaque" data-s="icon" hidden>
+  <div class="art fit">
+    <svg width="1080" height="1080" viewBox="0 0 1080 1080" aria-label="Prooffit">
+      <g transform="rotate(-90 540 540)" fill="none" stroke-linecap="butt">
+        <circle cx="540" cy="540" r="418" stroke="#C6FF4A" stroke-width="86"
+                stroke-dasharray="1470.9 2626.4" />
+        <circle cx="540" cy="540" r="418" stroke="#FF5C38" stroke-width="86"
+                stroke-dasharray="1050.6 2626.4" stroke-dashoffset="-1523.3" />
+      </g>
+    </svg>
+    <span class="glyph">P</span>
+  </div>
+</div>
+
+<!-- ═══ 2 · android-icon-foreground.png — transparente, en zona segura ═══ -->
+<div class="canvas" data-s="foreground" hidden>
+  <div class="art safe">
+    <svg width="1080" height="1080" viewBox="0 0 1080 1080" aria-label="Prooffit">
+      <g transform="rotate(-90 540 540)" fill="none" stroke-linecap="butt">
+        <circle cx="540" cy="540" r="418" stroke="#C6FF4A" stroke-width="86"
+                stroke-dasharray="1470.9 2626.4" />
+        <circle cx="540" cy="540" r="418" stroke="#FF5C38" stroke-width="86"
+                stroke-dasharray="1050.6 2626.4" stroke-dashoffset="-1523.3" />
+      </g>
+    </svg>
+    <span class="glyph">P</span>
+  </div>
+</div>
+
+<!-- ═══════ 3 · android-icon-background.png — Frame liso, sin dibujo ═══════ -->
+<div class="canvas opaque" data-s="background" hidden></div>
+
+<!-- ══ 4 · android-icon-monochrome.png — silueta que el sistema tiñe ══ -->
+<div class="canvas mono" data-s="monochrome" hidden>
+  <div class="art safe">
+    <svg width="1080" height="1080" viewBox="0 0 1080 1080" aria-label="Prooffit">
+      <g transform="rotate(-90 540 540)" fill="none" stroke-linecap="butt">
+        <circle cx="540" cy="540" r="418" stroke="#C6FF4A" stroke-width="86"
+                stroke-dasharray="1470.9 2626.4" />
+        <circle cx="540" cy="540" r="418" stroke="#FF5C38" stroke-width="86"
+                stroke-dasharray="1050.6 2626.4" stroke-dashoffset="-1523.3" />
+      </g>
+    </svg>
+    <span class="glyph">P</span>
+  </div>
+</div>
+
+<!-- ═══ 5 · splash-icon.png — transparente: el splash ya pinta Frame ═══ -->
+<div class="canvas" data-s="splash" hidden>
+  <div class="art fit">
+    <svg width="1080" height="1080" viewBox="0 0 1080 1080" aria-label="Prooffit">
+      <g transform="rotate(-90 540 540)" fill="none" stroke-linecap="butt">
+        <circle cx="540" cy="540" r="418" stroke="#C6FF4A" stroke-width="86"
+                stroke-dasharray="1470.9 2626.4" />
+        <circle cx="540" cy="540" r="418" stroke="#FF5C38" stroke-width="86"
+                stroke-dasharray="1050.6 2626.4" stroke-dashoffset="-1523.3" />
+      </g>
+    </svg>
+    <span class="glyph">P</span>
+  </div>
+</div>
+
+
+<!-- ═══ 6 · previsualización: cómo lo recorta el lanzador (no se exporta) ═══ -->
+<div class="canvas opaque" data-s="preview" hidden style="background:#2A2D36; gap:64px;">
+  <div style="display:flex; gap:64px; align-items:center;">
+    <div class="mask circulo"><div class="capa-fondo"></div><div class="capa-marca"><div class="art" style="transform:scale(0.24919)"><svg width="1080" height="1080" viewBox="0 0 1080 1080" aria-label="Prooffit">
+      <g transform="rotate(-90 540 540)" fill="none" stroke-linecap="butt">
+        <circle cx="540" cy="540" r="418" stroke="#C6FF4A" stroke-width="86"
+                stroke-dasharray="1470.9 2626.4" />
+        <circle cx="540" cy="540" r="418" stroke="#FF5C38" stroke-width="86"
+                stroke-dasharray="1050.6 2626.4" stroke-dashoffset="-1523.3" />
+      </g>
+    </svg>
+    <span class="glyph">P</span></div></div></div>
+    <div class="mask squircle"><div class="capa-fondo"></div><div class="capa-marca"><div class="art" style="transform:scale(0.24919)"><svg width="1080" height="1080" viewBox="0 0 1080 1080" aria-label="Prooffit">
+      <g transform="rotate(-90 540 540)" fill="none" stroke-linecap="butt">
+        <circle cx="540" cy="540" r="418" stroke="#C6FF4A" stroke-width="86"
+                stroke-dasharray="1470.9 2626.4" />
+        <circle cx="540" cy="540" r="418" stroke="#FF5C38" stroke-width="86"
+                stroke-dasharray="1050.6 2626.4" stroke-dashoffset="-1523.3" />
+      </g>
+    </svg>
+    <span class="glyph">P</span></div></div></div>
+    <div class="mask cuadrado"><div class="capa-fondo"></div><div class="capa-marca"><div class="art" style="transform:scale(0.24919)"><svg width="1080" height="1080" viewBox="0 0 1080 1080" aria-label="Prooffit">
+      <g transform="rotate(-90 540 540)" fill="none" stroke-linecap="butt">
+        <circle cx="540" cy="540" r="418" stroke="#C6FF4A" stroke-width="86"
+                stroke-dasharray="1470.9 2626.4" />
+        <circle cx="540" cy="540" r="418" stroke="#FF5C38" stroke-width="86"
+                stroke-dasharray="1050.6 2626.4" stroke-dashoffset="-1523.3" />
+      </g>
+    </svg>
+    <span class="glyph">P</span></div></div></div>
+  </div>
+</div>
+
+<script>
+  // Mismo selector por querystring que scripts/instagram-logo.html.
+  var want = new URLSearchParams(location.search).get('s');
+  var all = document.querySelectorAll('[data-s]');
+  var shown = false;
+  all.forEach(function (el) {
+    var match = el.getAttribute('data-s') === want;
+    el.hidden = !match;
+    if (match) shown = true;
+  });
+  if (!shown && all.length) all[0].hidden = false;
+</script>
